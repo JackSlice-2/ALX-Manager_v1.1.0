@@ -1,0 +1,7 @@
+{
+  "name": "react-native-wifi-connector",
+  "version": "1.0.0",
+  "keywords": ["react-native", "wifi", "connector"],
+  "license": "ISC",
+  "main": "index.js"
+}

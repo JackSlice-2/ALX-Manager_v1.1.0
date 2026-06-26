@@ -1,0 +1,68 @@
+{
+  "expo": {
+    "name": "ALX Mobile",
+    "slug": "ALX-Manager",
+    "version": "1.0.1",
+    "orientation": "portrait",
+    "icon": "./assets/images/shortcutLogo_V2.png",
+    "scheme": "alxmobile",
+    "userInterfaceStyle": "automatic",
+    "splash": {
+      "image": "./assets/images/white.png",
+      "resizeMode": "cover",
+      "backgroundColor": "#ffffff",
+      "imageWidth": 100
+    },
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.jackslice2.ALXMobile"
+    },
+    "android": {
+      "edgeToEdgeEnabled": true,
+      "predictiveBackGestureEnabled": false,
+      "package": "com.jackslice2.ALXMobile",
+      "permissions": [
+        "ACCESS_FINE_LOCATION",
+        "ACCESS_COARSE_LOCATION",
+        "ACCESS_WIFI_STATE",
+        "CHANGE_WIFI_STATE",
+        "ACCESS_NETWORK_STATE",
+        "NEARBY_WIFI_DEVICES",
+        "INTERNET",
+        "START_ACTIVITIES_FROM_BACKGROUND"
+]
+    },
+    "web": {
+      "output": "static",
+      "favicon": "./assets/images/favicon.png"
+    },
+    "plugins": [
+      [
+        "expo-build-properties",
+        {
+          "android": {
+            "usesCleartextTraffic": true
+          }
+        }
+      ],
+      "expo-router",
+      [
+        "expo-splash-screen"
+      ],
+      "./plugins/wifi-permissions-plugin.js",
+      "react-native-wifi-reborn",
+      "./plugins/add-background-launch-permission.js"
+
+    ],
+    "experiments": {
+      "typedRoutes": true,
+      "reactCompiler": true
+    },
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "98b6acd3-7590-4377-8f2f-375a8683aaa2"
+      }
+    }
+  }
+}
