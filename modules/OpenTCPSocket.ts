@@ -10,7 +10,7 @@ const LINKING_ERROR = `
 ❌ OpenTCPSocket is NOT linked.
 Make sure you:
 1. Rebuilt the app using: npx expo run:android
-2. Added the Kotlin module under package com.jackslice2.ALXMobile
+2. Added the Kotlin module under package com.allexo.alxmobile
 3. Registered the package correctly.
 `;
 

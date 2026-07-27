@@ -15,12 +15,12 @@
     },
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.jackslice2.ALXMobile"
+      "bundleIdentifier": "com.allexo.alxmobile"
     },
     "android": {
       "edgeToEdgeEnabled": true,
       "predictiveBackGestureEnabled": false,
-      "package": "com.jackslice2.ALXMobile",
+      "package": "com.allexo.alxmobile",
       "permissions": [
         "ACCESS_FINE_LOCATION",
         "ACCESS_COARSE_LOCATION",

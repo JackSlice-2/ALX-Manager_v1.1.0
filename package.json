@@ -10,7 +10,7 @@
     "web": "expo start --web",
     "lint": "expo lint",
     "build": "EAS_SKIP_AUTO_FINGERPRINT=1 eas build --platform android --profile preview --local --clear-cache",
-    "build-ios": "EAS_SKIP_AUTO_FINGERPRINT=1 eas build --profile preview --local --clear-cache",
+    "build-ios": "EAS_SKIP_AUTO_FINGERPRINT=1 eas build --platform android --profile production --local --clear-cache",
     "online": "eas build --platform android --profile preview"
   },
   "dependencies": {

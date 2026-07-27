@@ -87,9 +87,9 @@ android {
     buildToolsVersion rootProject.ext.buildToolsVersion
     compileSdk rootProject.ext.compileSdkVersion
 
-    namespace 'com.jackslice2.ALXMobile'
+    namespace 'com.allexo.alxmobile'
     defaultConfig {
-        applicationId 'com.jackslice2.ALXMobile'
+        applicationId 'com.allexo.alxmobile'
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
         versionCode 1

@@ -1,4 +1,4 @@
-package com.jackslice2.ALXMobile
+package com.allexo.alxmobile
 import expo.modules.splashscreen.SplashScreenManager
 
 import android.os.Build

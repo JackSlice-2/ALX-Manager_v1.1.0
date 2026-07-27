@@ -1,4 +1,4 @@
-package com.jackslice2.ALXMobile
+package com.allexo.alxmobile
 
 import android.app.Application
 import android.content.res.Configuration
@@ -12,8 +12,8 @@ import com.facebook.react.ReactHost
 import com.facebook.react.common.ReleaseLevel
 import com.facebook.react.defaults.DefaultNewArchitectureEntryPoint
 import com.facebook.react.defaults.DefaultReactNativeHost
-import com.jackslice2.ALXMobile.AndroidMobileDataPackage
-import com.jackslice2.ALXMobile.OpenTCPSocketPackage
+import com.allexo.alxmobile.AndroidMobileDataPackage
+import com.allexo.alxmobile.OpenTCPSocketPackage
 
 import expo.modules.ApplicationLifecycleDispatcher
 import expo.modules.ReactNativeHostWrapper

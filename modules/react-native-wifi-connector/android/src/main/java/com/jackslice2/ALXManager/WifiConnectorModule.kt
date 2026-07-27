@@ -1,4 +1,4 @@
-package com.jackslice2.ALXMobile
+package com.allexo.alxmobile
 
 import android.content.Context
 import android.content.Intent

@@ -1,4 +1,4 @@
-package com.jackslice2.ALXMobile
+package com.allexo.alxmobile
 
 import com.facebook.react.bridge.ReactApplicationContext
 import com.facebook.react.bridge.ReactContextBaseJavaModule
