@@ -1,7 +1,7 @@
 {
   "name": "alx-mobile",
   "main": "expo-router/entry",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "scripts": {
     "start": "expo start -c",
     "reset-project": "node ./scripts/reset-project.js",
@@ -11,8 +11,8 @@
     "lint": "expo lint",
     "build": "EAS_SKIP_AUTO_FINGERPRINT=1 eas build --platform android --profile preview --local --clear-cache",
     "build-ios": "EAS_SKIP_AUTO_FINGERPRINT=1 eas build --platform android --profile production --local --clear-cache",
-    "online": "eas build --platform android --profile preview"
-  },
+    "play-build": "EAS_SKIP_AUTO_FINGERPRINT=1 eas build --platform android --profile production"
+},
   "dependencies": {
     "@expo/vector-icons": "^15.0.3",
     "@react-native-async-storage/async-storage": "^2.2.0",
@@ -68,6 +68,7 @@
   "devDependencies": {
     "@types/crypto-js": "^4.2.2",
     "@types/react": "~19.1.0",
+    "eas-cli": "^21.4.0",
     "eslint": "^9.25.0",
     "eslint-config-expo": "^10.0.0",
     "typescript": "~5.9.2"
