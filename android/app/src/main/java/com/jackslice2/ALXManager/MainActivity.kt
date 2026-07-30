@@ -1,8 +1,10 @@
 package com.allexo.alxmobile
 import expo.modules.splashscreen.SplashScreenManager
 
+import android.content.Intent
 import android.os.Build
 import android.os.Bundle
+import android.util.Log
 
 import com.facebook.react.ReactActivity
 import com.facebook.react.ReactActivityDelegate
@@ -12,6 +14,8 @@ import com.facebook.react.defaults.DefaultReactActivityDelegate
 import expo.modules.ReactActivityDelegateWrapper
 
 class MainActivity : ReactActivity() {
+    private lateinit var inAppUpdateHelper: InAppUpdateHelper
+
   override fun onCreate(savedInstanceState: Bundle?) {
     // Set the theme to AppTheme BEFORE onCreate to support
     // coloring the background, status bar, and navigation bar.
@@ -20,7 +24,21 @@ class MainActivity : ReactActivity() {
     // @generated begin expo-splashscreen - expo prebuild (DO NOT MODIFY) sync-f3ff59a738c56c9a6119210cb55f0b613eb8b6af
     SplashScreenManager.registerOnActivity(this)
     // @generated end expo-splashscreen
+    
+    Log.e("ALX_MOBILE", "🔥🔥🔥 MAIN ACTIVITY ON CREATE STARTED 🔥🔥🔥")
+    
+    // Initialize In-App Update helper
+    Log.d("ALX_MOBILE", "🛠️  Initializing InAppUpdateHelper...")
+    inAppUpdateHelper = InAppUpdateHelper(this)
+    Log.d("ALX_MOBILE", "✅ InAppUpdateHelper initialized")
+    
+    // Check for updates when the app launches
+    Log.d("ALX_MOBILE", "🔍 Calling checkForAppUpdates()...")
+    checkForAppUpdates()
+    Log.d("ALX_MOBILE", "✅ checkForAppUpdates() called")
+    
     super.onCreate(null)
+    Log.d("ALX_MOBILE", "🎯 super.onCreate(null) completed")
   }
 
   /**
@@ -42,6 +60,22 @@ class MainActivity : ReactActivity() {
               mainComponentName,
               fabricEnabled
           ){})
+  }
+
+  /**
+   * Check for available app updates on Google Play
+   */
+  private fun checkForAppUpdates() {
+    Log.d("ALX_MOBILE", "🔍 Running update check (both debug and release)...")
+    inAppUpdateHelper.checkForUpdates()
+  }
+
+  /**
+   * Handle the result of the In-App Update flow
+   */
+  override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
+    super.onActivityResult(requestCode, resultCode, data)
+    inAppUpdateHelper.handleUpdateResult(requestCode, resultCode, data)
   }
 
   /**
