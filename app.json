@@ -4,7 +4,7 @@
     "slug": "ALX-Manager",
     "version": "1.0.1",
     "orientation": "default",
-    "icon": "./assets/images/shortcutLogo_V2.png",
+    "icon": "./assets/images/shortcutLogo_V3.png",
     "scheme": "alxmobile",
     "userInterfaceStyle": "automatic",
     "splash": {
@@ -30,7 +30,7 @@
         "NEARBY_WIFI_DEVICES",
         "INTERNET",
         "START_ACTIVITIES_FROM_BACKGROUND"
-]
+      ]
     },
     "web": {
       "output": "static",
@@ -51,8 +51,9 @@
       ],
       "./plugins/wifi-permissions-plugin.js",
       "react-native-wifi-reborn",
-      "./plugins/add-background-launch-permission.js"
-
+      "./plugins/add-background-launch-permission.js",
+      "expo-font",
+      "expo-web-browser"
     ],
     "experiments": {
       "typedRoutes": true,
