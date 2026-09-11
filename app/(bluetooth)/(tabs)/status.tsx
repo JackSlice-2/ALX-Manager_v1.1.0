@@ -1,8 +1,8 @@
 import React, { useEffect } from 'react';
 import { ScrollView, StyleSheet, useWindowDimensions, View } from 'react-native';
-import ScreenOne from '../../../components/dashboard/screens/ScreenOne';
-import ScreenThree from '../../../components/dashboard/screens/ScreenThree';
-import ScreenTwo from '../../../components/dashboard/screens/ScreenTwo';
+import ScreenOne from '@/components/bluetooth/dashboard/screens/ScreenOne';
+import ScreenThree from '@/components/bluetooth/dashboard/screens/ScreenThree';
+import ScreenTwo from '@/components/bluetooth/dashboard/screens/ScreenTwo';
 import PageContainer from '../../../components/PageContainer';
 import useGetInfo from '@/utils/getEvery5Seconds';
 import LoaderOverlay from '@/components/LoaderOverlay';
