@@ -236,9 +236,9 @@ export default function WiFiConnect() {
     return;
   }
 
-  router.replace('./(wifi)/status');
+  router.replace('./(bluetooth)/status');
 
-      router.replace('./(wifi)/status');
+      router.replace('./(bluetooth)/status');
       return;
     }
 
@@ -270,9 +270,9 @@ export default function WiFiConnect() {
     return;
   }
 
-    router.replace('./(wifi)/status');
+    router.replace('./(bluetooth)/status');
     savePassword(pwd);
-    router.replace('./(wifi)/status');
+    router.replace('./(bluetooth)/status');
 
   } catch (err: any) {
     console.error('[WiFi] Error:', err.code || err.message, err);

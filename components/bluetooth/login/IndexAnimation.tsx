@@ -45,7 +45,7 @@ const IndexAnimation: React.FC<IndexAnimationProps> = ({
         </TouchableOpacity>
 
         <TouchableOpacity style={styles.button} onPress={openNetworkModal}>
-          <Image source={require('@/assets/images/wifi.png')} style={{ width: 97, height: 70, alignSelf: 'center', marginBottom: 10 }} />
+          <Image source={require('@/assets/images/Bluetooth.jpeg')} style={{ width: 97, height: 70, alignSelf: 'center', marginBottom: 10 }} />
           <RobotoText style={styles.buttonText}>
             {t.Login.connectBluetooth}
           </RobotoText>

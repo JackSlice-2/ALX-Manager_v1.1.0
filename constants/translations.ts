@@ -18,6 +18,10 @@ export const translations = {
       Password: "Senha",
       Clear: "Limpar"
     },
+    Index: {
+      Alx4x: 'Linha ALX-4x',
+      Alx5x: 'Linha ALX-5x',
+    },
     Login: {
       connectQR: 'Conectar via\n QR Code',
       connectWifi: 'Conectar via Wi-Fi do Celular',
@@ -415,6 +419,10 @@ export const translations = {
       Saving: "Saving...",
       Password: "Password",
       Clear: "Clear"
+    },
+    Index: {
+      Alx4x: 'ALX-4x Model',
+      Alx5x: 'ALX-5x Model',
     },
     Login: {
       connectQR: 'Connect with\n QR Code',

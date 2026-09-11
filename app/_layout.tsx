@@ -80,8 +80,10 @@ export default function RootLayout() {
         <ThemeProvider value={DefaultTheme}>
           <Stack>
             <Stack.Screen name="index" options={{ headerShown: false }} />
-            <Stack.Screen name="(wifi)/index" options={{ headerShown: false }} />
+            {/*<Stack.Screen name="(wifi)/index" options={{ headerShown: false }} />
               <Stack.Screen name="(bluetooth)/index" options={{ headerShown: false }} />
+            <Stack.Screen name="(wifi)/(tabs)" options={{ headerShown: false }} />
+              <Stack.Screen name="(bluetooth)/(tabs)" options={{ headerShown: false }} />*/}
           </Stack>
         </ThemeProvider>
       </LanguageProvider>

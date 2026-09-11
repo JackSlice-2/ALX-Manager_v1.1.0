@@ -50,7 +50,7 @@ export default function Dashboard() {
 
   return (
     <PageContainer
-      title={t.StatusPage.text0}
+      title={"Bluetooth Status"}
       image={require('@/assets/images/SVG/icons8-info-250.png')}
     >
       <ScrollView
