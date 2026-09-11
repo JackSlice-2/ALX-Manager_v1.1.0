@@ -113,32 +113,6 @@ const ScreenThree: React.FC<ScreenThreeProps> = ({
                   </View>
                 </View>
 
-                {/* Row 2 */}
-                <View style={[styles.inputGroup, { flexDirection: 'row' }]}>
-                  <View style={styles.singleInput}>
-                    <RobotoText style={styles.label}>{t.StatusPage3.text2}</RobotoText>
-                    <RobotoText style={styles.sectionText}>
-                      {driver.rtu === true && "RTU"}
-                      {driver.tcp  === true && driver.rtu === true && "/"}
-                      {driver.tcp === true && "TCP"}
-                      </RobotoText>
-                  </View>
-
-                  <View style={styles.singleInputIP}>
-                    <RobotoText style={styles.label}>
-                      {t.StatusPage3.text5}
-                    </RobotoText>
-                    <RobotoText style={styles.IPsectionText}>{driver.ip || '-'}</RobotoText>
-                  </View>
-
-                  <View style={styles.singleInputIPLine}>
-                    <RobotoText style={styles.label}>
-                      {t.StatusPage3.text6}
-                    </RobotoText>
-                    <RobotoText style={styles.sectionText}>{driver.port}</RobotoText>
-                  </View>
-                </View>
-
                 {/* Row 3 */}
                 <View style={[styles.inputGroup, { flexDirection: 'row' }]}>
                   <View style={styles.singleInput}>

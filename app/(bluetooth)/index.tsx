@@ -1,6 +1,14 @@
 import { router, useFocusEffect } from 'expo-router';
 import React, { useEffect, useRef, useState } from 'react';
-import { Alert, AppState, BackHandler, Linking, Platform } from 'react-native';
+import {
+  Alert,
+  AppState,
+  BackHandler,
+  Linking,
+  NativeEventEmitter,
+  NativeModules,
+  Platform,
+} from 'react-native';
 import WifiManager from 'react-native-wifi-reborn';
 import { openWifiSettings } from '@/utils/constants';
 import useCheckAppUpdate from '@/hooks/useCheckAppUpdate';
@@ -9,8 +17,12 @@ import useCheckUpdate from '@/hooks/useCheckUpdate';
 import useWifiPassword from '@/hooks/useWifiPassword';
 import { ensureLocationPermission, isSystemLocationEnabled, NetworkType, normalizeWifiResults, verifyConnection } from '@/hooks/wifiHelpers';
 import IndexClient from '@/components/bluetooth/login/IndexClient';
+import {
+  ensureBluetoothPermission,
+  isBluetoothEnabled,
+} from '@/hooks/bluetoothHelpers';
 
-export default function WiFiConnect() {
+export default function BluetoothConnect() {
 
   const [networks, setNetworks] = useState<NetworkType[]>([]);
   const [availableGateways, setAvailableGateways] = useState<string[]>([]);
@@ -28,6 +40,90 @@ export default function WiFiConnect() {
   const urlParams = { codigo: 'alx4gs', versao: '0.0.0', serial: '00000005' };
   const { savePassword } = useWifiPassword(selectedNetwork?.ssid || '');
   const lastSSIDRef = useRef<string | null>(null);
+
+  useEffect(() => {
+  const initBluetooth = async () => {
+    console.log('[Bluetooth] Requesting permissions...');
+
+    const granted = await ensureBluetoothPermission();
+
+    if (granted) {
+      console.log('[Bluetooth] Permissions granted');
+    } else {
+      console.log('[Bluetooth] Permissions denied');
+    }
+  };
+
+  initBluetooth();
+}, []);
+
+useEffect(() => {
+  const initBluetooth = async () => {
+    console.log('[Bluetooth] Requesting permissions...');
+
+    const granted = await ensureBluetoothPermission();
+
+    if (!granted) {
+      console.log('[Bluetooth] Permissions denied');
+      return;
+    }
+
+    console.log('[Bluetooth] Permissions granted');
+
+    const enabled = await isBluetoothEnabled();
+
+    console.log('[Bluetooth] Bluetooth enabled:', enabled);
+  };
+
+  initBluetooth();
+}, []);
+
+useEffect(() => {
+  const bluetoothHelper = NativeModules.BluetoothHelper;
+
+  const emitter = new NativeEventEmitter(bluetoothHelper);
+
+  const deviceSubscription = emitter.addListener(
+    'BluetoothDeviceFound',
+    (device) => {
+      console.log(
+        '[Bluetooth] Device found:',
+        device.name,
+        device.address,
+        'RSSI:',
+        device.rssi
+      );
+    }
+  );
+
+  const scanFailedSubscription = emitter.addListener(
+    'BluetoothScanFailed',
+    (errorCode) => {
+      console.log('[Bluetooth] Scan failed:', errorCode);
+    }
+  );
+
+  const startScan = async () => {
+    try {
+      console.log('[Bluetooth] Starting BLE scan...');
+
+      await bluetoothHelper.startBleScan();
+
+      console.log('[Bluetooth] BLE scan started');
+    } catch (error) {
+      console.log('[Bluetooth] BLE scan error:', error);
+    }
+  };
+
+  startScan();
+
+  return () => {
+    deviceSubscription.remove();
+    scanFailedSubscription.remove();
+
+    bluetoothHelper.stopBleScan().catch(() => {});
+  };
+}, []);
 
   const openedWifiPanelRef = useRef(false);
     useCheckUpdate(urlParams);
