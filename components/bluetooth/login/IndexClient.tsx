@@ -8,10 +8,10 @@ import { ensureLocationPermission, isSystemLocationEnabled } from '@/hooks/wifiH
 import QRReader from '../../login//QRReader';
 import RobotoText from '../../RobotoText';
 import IndexAnimation from './IndexAnimation';
-import ManualConnectModal from '@/components/login/ManualConnectModal';
 import LanguageToggle from '@/components/login/LanguageToggle';
 import NativeWifiModal from '../../login/NativeWifiModal';
 import { router } from 'expo-router';
+import ManualBluetoothModal from '@/components/bluetooth/login/ManualBluetoothModal';
 
 interface IndexClientProps {
     setShowQRScanner: any
@@ -54,8 +54,8 @@ const IndexClient: React.FC<IndexClientProps> = ({
     setErrorMessage,
     openNetworkModal
 }) => {
-    const [showManualModal, setShowManualModal] = useState(false);
-    
+    const [showBluetoothModal, setShowBluetoothModal] = useState(false);
+
     const openQRScanner = async () => {
         setWifiDisabled(false);
         setLocationDisabled(false);
@@ -98,7 +98,8 @@ const IndexClient: React.FC<IndexClientProps> = ({
                 <IndexAnimation
                     openNetworkModal={openNetworkModal}
                     openQRScanner={openQRScanner}
-                    openManualConnect={() => setShowManualModal(true)}
+                    openManualConnect={() => {}}
+                    openBluetoothConnect={() => setShowBluetoothModal(true)}
                 />
             {(scanning || isConnecting) && (
                 <View style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, justifyContent: 'center', alignItems: 'center', backgroundColor: "#00000060" }}>
@@ -120,14 +121,9 @@ const IndexClient: React.FC<IndexClientProps> = ({
                     )}
                 </>
             )}
-            <ManualConnectModal
-                visible={showManualModal}
-                networks={networks}
-                onClose={() => setShowManualModal(false)}
-                onSubmit={(data) => {
-                setShowManualModal(false);
-                handleQRScan(data);
-                }}
+            <ManualBluetoothModal
+                visible={showBluetoothModal}
+                onClose={() => setShowBluetoothModal(false)}
             />
             <PermissionModal
                 visible={wifiDisabled}

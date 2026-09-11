@@ -10,12 +10,14 @@ interface IndexAnimationProps {
     openNetworkModal: () => void;
     openQRScanner: () => void;
     openManualConnect: () => void;
+    openBluetoothConnect: () => void;
   }
 
 const IndexAnimation: React.FC<IndexAnimationProps> = ({
     openQRScanner,
     openNetworkModal,
-    openManualConnect
+    openManualConnect,
+    openBluetoothConnect
   }) => {
   const t = useT();
   const scaleAnim = useRef(new Animated.Value(0)).current;
@@ -51,7 +53,7 @@ const IndexAnimation: React.FC<IndexAnimationProps> = ({
           </RobotoText>
         </TouchableOpacity>
 
-        <TouchableOpacity style={styles.button} onPress={openManualConnect}>
+        <TouchableOpacity style={styles.button} onPress={openBluetoothConnect}>
           <Image source={require('@/assets/images/Senha.png')} style={{ width: 70, height: 70, alignSelf: 'center', marginBottom: 10 }} />
           <RobotoText style={styles.buttonText}>
             {t.Login.connectPassword}

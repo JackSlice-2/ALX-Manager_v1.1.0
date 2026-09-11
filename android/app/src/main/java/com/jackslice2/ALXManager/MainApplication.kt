@@ -15,6 +15,7 @@ import com.facebook.react.defaults.DefaultReactNativeHost
 import com.allexo.alxmobile.AndroidMobileDataPackage
 import com.allexo.alxmobile.OpenTCPSocketPackage
 import com.allexo.alxmobile.BluetoothHelperPackage
+import com.allexo.alxmobile.AlxBleProtocolPackage
 
 import expo.modules.ApplicationLifecycleDispatcher
 import expo.modules.ReactNativeHostWrapper
@@ -29,6 +30,8 @@ class MainApplication : Application(), ReactApplication {
             add(AndroidMobileDataPackage())
             add(OpenTCPSocketPackage())
             add(BluetoothHelperPackage())
+            add(AlxBleProtocolPackage())
+            add(AlxBleGattPackage())
             }
 
           override fun getJSMainModuleName(): String = ".expo/.virtual-metro-entry"
