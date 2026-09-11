@@ -1,9 +1,9 @@
 import { router, useGlobalSearchParams } from 'expo-router';
 import React, { useEffect, useState } from 'react';
 import { Image, StyleSheet, TouchableOpacity, View, } from 'react-native';
-import PageContainer from '../../components/PageContainer';
-import RobotoText from '../../components/RobotoText';
-import RenderModals from '../../components/settings/RenderModels';
+import PageContainer from '../../../components/PageContainer';
+import RobotoText from '../../../components/RobotoText';
+import RenderModals from '../../../components/settings/RenderModels';
 import useAllSettingsData from '@/components/settings/useAllSettings';
 import { useT } from '@/hooks/useT';
 import { useConfigOptions } from '@/utils/constants';
@@ -60,7 +60,7 @@ export default function Settings() {
   return (
     <PageContainer
       title={t.Settings.text0}
-      image={require('../../assets/images/Tools.png')}
+      image={require('@/assets/images/Tools.png')}
     >
       <View style={styles.optionsContainer}>
         {useConfigOptions().map(({ label, image }: any) => {

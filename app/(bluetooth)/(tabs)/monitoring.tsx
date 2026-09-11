@@ -1,7 +1,7 @@
 import React from 'react';
 import { StyleSheet, View } from 'react-native';
-import PageContainer from '../../components/PageContainer';
-import RobotoText from '../../components/RobotoText';
+import PageContainer from '../../../components/PageContainer';
+import RobotoText from '../../../components/RobotoText';
 import useGetInfo from '@/utils/getEvery5Seconds';
 import LoaderOverlay from '@/components/LoaderOverlay';
 import { useT } from '@/hooks/useT';
@@ -24,7 +24,7 @@ const WiFi = () => {
   return (
     <PageContainer
       title={t.Monitoring.text0}
-      image={require('../../assets/images/SVG/icons8-monitor-250.png')}
+      image={require('@/assets/images/SVG/icons8-monitor-250.png')}
     >
       <View
         style={{

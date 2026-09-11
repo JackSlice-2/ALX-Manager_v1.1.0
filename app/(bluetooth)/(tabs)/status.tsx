@@ -1,9 +1,9 @@
 import React, { useEffect } from 'react';
 import { ScrollView, StyleSheet, useWindowDimensions, View } from 'react-native';
-import ScreenOne from '../../components/dashboard/screens/ScreenOne';
-import ScreenThree from '../../components/dashboard/screens/ScreenThree';
-import ScreenTwo from '../../components/dashboard/screens/ScreenTwo';
-import PageContainer from '../../components/PageContainer';
+import ScreenOne from '../../../components/dashboard/screens/ScreenOne';
+import ScreenThree from '../../../components/dashboard/screens/ScreenThree';
+import ScreenTwo from '../../../components/dashboard/screens/ScreenTwo';
+import PageContainer from '../../../components/PageContainer';
 import useGetInfo from '@/utils/getEvery5Seconds';
 import LoaderOverlay from '@/components/LoaderOverlay';
 import { useKeepAwake } from 'expo-keep-awake'
@@ -51,7 +51,7 @@ export default function Dashboard() {
   return (
     <PageContainer
       title={t.StatusPage.text0}
-      image={require('../../assets/images/SVG/icons8-info-250.png')}
+      image={require('@/assets/images/SVG/icons8-info-250.png')}
     >
       <ScrollView
         horizontal

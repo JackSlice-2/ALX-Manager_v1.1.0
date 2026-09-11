@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { StyleSheet, View } from 'react-native';
+import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import WifiManager from 'react-native-wifi-reborn';
 import { openLocationSettings, openWifiSettings } from '@/utils/constants';
 import LoaderOverlay from '@/components/LoaderOverlay';
@@ -11,6 +11,7 @@ import IndexAnimation from '@/components/login/IndexAnimation';
 import ManualConnectModal from '@/components/login/ManualConnectModal';
 import LanguageToggle from '@/components/login/LanguageToggle';
 import NativeWifiModal from './NativeWifiModal';
+import { router } from 'expo-router';
 
 interface IndexClientProps {
     setShowQRScanner: any
@@ -70,13 +71,28 @@ const IndexClient: React.FC<IndexClientProps> = ({
     return (
         <>
         {!showQRScanner &&
-            <View style={{position: 'absolute', top: 40, right: 20, zIndex: 10,}}>
+        <View>
+             <View style={{position: 'absolute', top: 40, right: 20, zIndex: 10,}}>
                 <LanguageToggle
                     onChange={(lang) => {
                     console.log('Language changed to:', lang);
                     }}
                 />
             </View>
+             <View style={{ position: 'absolute', top: 50, left: 20, zIndex: 10 }}>
+  <TouchableOpacity
+    onPress={() => router.back()}
+    style={{
+      width: 45,
+      height: 45,
+      justifyContent: 'center',
+      alignItems: 'center',
+    }}
+  >
+    <Text style={{ fontSize: 32 }}>‹--</Text>
+  </TouchableOpacity>
+</View>
+        </View>
         }
             <View style={styles.container}>
                 <IndexAnimation

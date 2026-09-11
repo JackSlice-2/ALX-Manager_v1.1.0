@@ -21,6 +21,7 @@ export const translations = {
     Login: {
       connectQR: 'Conectar via\n QR Code',
       connectWifi: 'Conectar via Wi-Fi do Celular',
+      connectBluetooth: 'Conectar via Bluetooth do Celular',
       connectPassword: 'Conectar via Senha',
     },
     QRReader: {
@@ -418,6 +419,7 @@ export const translations = {
     Login: {
       connectQR: 'Connect with\n QR Code',
       connectWifi: 'Connect with Phone\'s Wi-Fi',
+      connectBluetooth: 'Connect with Phone\'s Bluetooth',
       connectPassword: 'Connect with Password',
     },
     QRReader: {

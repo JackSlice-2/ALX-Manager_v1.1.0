@@ -8,13 +8,13 @@ import { LanguageProvider } from '@/contexts/LanguageContext';
 import { StatusBar } from 'expo-status-bar';
 
 export const unstable_settings = {
-  anchor: '(tabs)',
+  anchor: 'index',
 };
 
 const fetchFonts = () => {
   return Font.loadAsync({
-    'roboto-condensed': require('../assets/fonts/static/RobotoCondensed-Regular.ttf'),
-    'roboto-condensed-bold': require('../assets/fonts/static/RobotoCondensed-Bold.ttf'),
+    'roboto-condensed': require('@/assets/fonts/static/RobotoCondensed-Regular.ttf'),
+    'roboto-condensed-bold': require('@/assets/fonts/static/RobotoCondensed-Bold.ttf'),
   });
 };
 
@@ -59,7 +59,7 @@ export default function RootLayout() {
     return (
       <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: 'white'}}>
         <Image
-          source={require('../assets/images/splash-icon.png')}
+          source={require('@/assets/images/splash-icon.png')}
           style={{
             width: '80%',
             height: '100%',
@@ -80,7 +80,8 @@ export default function RootLayout() {
         <ThemeProvider value={DefaultTheme}>
           <Stack>
             <Stack.Screen name="index" options={{ headerShown: false }} />
-            <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+            <Stack.Screen name="(wifi)/index" options={{ headerShown: false }} />
+              <Stack.Screen name="(bluetooth)/index" options={{ headerShown: false }} />
           </Stack>
         </ThemeProvider>
       </LanguageProvider>

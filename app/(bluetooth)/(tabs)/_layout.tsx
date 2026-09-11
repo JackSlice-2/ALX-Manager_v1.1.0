@@ -2,9 +2,9 @@ import { DefaultTheme, ThemeProvider } from '@react-navigation/native';
 import { Tabs } from 'expo-router';
 import React from 'react';
 import { Image } from 'react-native';
-import Header from '../../components/Header';
-import { HapticTab } from '../../components/haptic-tab';
-import { Colors } from '../../constants/theme';
+import Header from '../../../components/Header';
+import { HapticTab } from '../../../components/haptic-tab';
+import { Colors } from '../../../constants/theme';
 import { useT } from '@/hooks/useT';
 
 export default function TabLayout() {
@@ -41,7 +41,7 @@ export default function TabLayout() {
             title: t.Tabs.disconnect,
             tabBarIcon: ({ color }) => (
               <Image
-                source={require('../../assets/images/SVG/icons8-qr-code-250.png')}
+                source={require('@/assets/images/SVG/icons8-qr-code-250.png')}
                 style={{ width: 28, height: 28, tintColor: color }}
               />
             ),
@@ -53,7 +53,7 @@ export default function TabLayout() {
             title: t.Tabs.status,
             tabBarIcon: ({ color }) => (
               <Image
-                source={require('../../assets/images/SVG/icons8-info-250.png')}
+                source={require('@/assets/images/SVG/icons8-info-250.png')}
                 style={{ width: 28, height: 28, tintColor: color }}
               />
             ),
@@ -65,7 +65,7 @@ export default function TabLayout() {
             title: t.Tabs.settings,
             tabBarIcon: ({ color }) => (
               <Image
-                source={require('../../assets/images/SVG/icons8-tools-250.png')}
+                source={require('@/assets/images/SVG/icons8-tools-250.png')}
                 style={{ width: 28, height: 28, tintColor: color }}
               />
             ),
@@ -77,7 +77,7 @@ export default function TabLayout() {
             title: t.Tabs.monitoring,
             tabBarIcon: ({ color }) => (
               <Image
-                source={require('../../assets/images/SVG/icons8-monitor-250.png')}
+                source={require('@/assets/images/SVG/icons8-monitor-250.png')}
                 style={{ width: 28, height: 28, tintColor: color }}
               />
             ),
@@ -89,7 +89,7 @@ export default function TabLayout() {
             title: t.Tabs.support,
             tabBarIcon: ({ color }) => (
               <Image
-                source={require('../../assets/images/SVG/icons8-support-250.png')}
+                source={require('@/assets/images/SVG/icons8-support-250.png')}
                 style={{ width: 28, height: 28, tintColor: color }}
               />
             ),
