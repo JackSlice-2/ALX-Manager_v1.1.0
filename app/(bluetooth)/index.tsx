@@ -41,22 +41,6 @@ export default function BluetoothConnect() {
   const { savePassword } = useWifiPassword(selectedNetwork?.ssid || '');
   const lastSSIDRef = useRef<string | null>(null);
 
-  useEffect(() => {
-  const initBluetooth = async () => {
-    console.log('[Bluetooth] Requesting permissions...');
-
-    const granted = await ensureBluetoothPermission();
-
-    if (granted) {
-      console.log('[Bluetooth] Permissions granted');
-    } else {
-      console.log('[Bluetooth] Permissions denied');
-    }
-  };
-
-  initBluetooth();
-}, []);
-
 useEffect(() => {
   const initBluetooth = async () => {
     console.log('[Bluetooth] Requesting permissions...');

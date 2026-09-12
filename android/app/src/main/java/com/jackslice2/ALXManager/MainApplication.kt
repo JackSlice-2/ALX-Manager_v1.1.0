@@ -14,8 +14,11 @@ import com.facebook.react.defaults.DefaultNewArchitectureEntryPoint
 import com.facebook.react.defaults.DefaultReactNativeHost
 import com.allexo.alxmobile.AndroidMobileDataPackage
 import com.allexo.alxmobile.OpenTCPSocketPackage
-import com.allexo.alxmobile.BluetoothHelperPackage
-import com.allexo.alxmobile.AlxBleProtocolPackage
+import com.allexo.alxmobile.ble.BluetoothHelperPackage
+import com.allexo.alxmobile.ble.AlxBleGattPackage
+import com.allexo.alxmobile.ble.AlxBleProtocolPackage
+import com.allexo.alxmobile.ble.AlxBleTransportPackage
+import com.allexo.alxmobile.ble.BluetoothConnectionPackage
 
 import expo.modules.ApplicationLifecycleDispatcher
 import expo.modules.ReactNativeHostWrapper
@@ -32,6 +35,8 @@ class MainApplication : Application(), ReactApplication {
             add(BluetoothHelperPackage())
             add(AlxBleProtocolPackage())
             add(AlxBleGattPackage())
+            add(BluetoothConnectionPackage())
+            add(AlxBleTransportPackage())
             }
 
           override fun getJSMainModuleName(): String = ".expo/.virtual-metro-entry"

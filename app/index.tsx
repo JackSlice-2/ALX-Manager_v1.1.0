@@ -60,14 +60,14 @@ const IndexAnimation: React.FC<IndexAnimationProps> = ({
         }}
       >
         <TouchableOpacity style={styles.button} onPress={() => router.push('/(wifi)')}>
-          <Image source={require('@/assets/images/ALX-4x.png')} style={{ width: 97, height: 70, alignSelf: 'center', marginBottom: 10 }} />
+          <Image source={require('@/assets/images/ALX-4x.png')} style={{ width: 120, height: 80, alignSelf: 'center', marginBottom: 10 }} />
           <RobotoText style={styles.buttonText}>
             {t.Index.Alx4x}
           </RobotoText>
         </TouchableOpacity>
         
         <TouchableOpacity style={styles.button} onPress={() => router.push('/(bluetooth)')}>
-          <Image source={require('@/assets/images/ALX-5x.png')} style={{ width: 97, height: 70, alignSelf: 'center', marginBottom: 10 }} />
+          <Image source={require('@/assets/images/ALX-5x.png')} style={{ width: 120, height: 80, alignSelf: 'center', marginBottom: 10 }} />
           <RobotoText style={styles.buttonText}>
             {t.Index.Alx5x}
           </RobotoText>

@@ -1,17 +1,17 @@
-package com.allexo.alxmobile
+package com.allexo.alxmobile.ble
 
 import com.facebook.react.ReactPackage
 import com.facebook.react.bridge.NativeModule
 import com.facebook.react.bridge.ReactApplicationContext
 import com.facebook.react.uimanager.ViewManager
 
-class AlxBleGattPackage : ReactPackage {
+class AlxBleTransportPackage : ReactPackage {
 
     override fun createNativeModules(
         reactContext: ReactApplicationContext
     ): List<NativeModule> {
         return listOf(
-            AlxBleGattModule(reactContext)
+            AlxBleTransportModule(reactContext)
         )
     }
 

@@ -1,18 +1,16 @@
-package com.allexo.alxmobile
+package com.allexo.alxmobile.ble
 
 import com.facebook.react.ReactPackage
 import com.facebook.react.bridge.NativeModule
 import com.facebook.react.bridge.ReactApplicationContext
 import com.facebook.react.uimanager.ViewManager
 
-class AlxBleProtocolPackage : ReactPackage {
+class BluetoothHelperPackage : ReactPackage {
 
     override fun createNativeModules(
         reactContext: ReactApplicationContext
     ): List<NativeModule> {
-        return listOf(
-            AlxBleProtocolModule(reactContext)
-        )
+        return listOf(BluetoothHelperModule(reactContext))
     }
 
     override fun createViewManagers(
