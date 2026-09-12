@@ -4,6 +4,7 @@ import android.annotation.SuppressLint
 import android.bluetooth.BluetoothGatt
 import android.bluetooth.BluetoothGattCharacteristic
 import android.bluetooth.BluetoothGattDescriptor
+import android.os.Build
 import android.util.Log
 
 import com.facebook.react.bridge.Arguments
@@ -23,9 +24,7 @@ class AlxBleTransportModule(
     companion object {
 
         private const val TAG = "AlxBleTransport"
-
-        private const val MODULE_NAME =
-            "AlxBleTransport"
+        private const val MODULE_NAME = "AlxBleTransport"
 
         private const val EVENT_DATA_RECEIVED =
             "AlxBleDataReceived"
@@ -33,12 +32,16 @@ class AlxBleTransportModule(
         private const val EVENT_NOTIFICATION_ENABLED =
             "AlxBleNotificationEnabled"
 
-        // ---------------------------------------------------------------------
+        // =====================================================================
         // ALX GATT UUIDs
-        // ---------------------------------------------------------------------
+        // =====================================================================
 
         private val SERVICE_UUID = UUID.fromString(
             "12345678-1234-5678-1234-56789abcdef7"
+        )
+
+        private val TX_UUID = UUID.fromString(
+            "12345678-1234-5678-1234-56789abcdef8"
         )
 
         private val RX_UUID = UUID.fromString(
@@ -82,7 +85,6 @@ class AlxBleTransportModule(
         ) {
 
             activeGatt = gatt
-
             txCharacteristic = tx
             rxCharacteristic = rx
             rx2Characteristic = rx2
@@ -90,45 +92,48 @@ class AlxBleTransportModule(
             rxNotificationsEnabled = false
             rx2NotificationsEnabled = false
 
+            Log.d(
+                TAG,
+                "GATT configured"
+            )
+
+            Log.d(
+                TAG,
+                "GATT object : $gatt"
+            )
+
+            Log.d(
+                TAG,
+                "TX         : ${tx?.uuid}"
+            )
+
+            Log.d(
+                TAG,
+                "RX         : ${rx?.uuid}"
+            )
+
+            Log.d(
+                TAG,
+                "RX2        : ${rx2?.uuid}"
+            )
+
+            if (tx != null) {
+
+                Log.d(
+                    TAG,
+                    "TX props   : ${instance?.propertiesToString(tx.properties)}"
+                )
+            }
+
             instance?.clearPendingOperations()
-
-            Log.d(
-                TAG,
-                "=================================================="
-            )
-
-            Log.d(
-                TAG,
-                "GATT TRANSPORT CONFIGURED"
-            )
-
-            Log.d(
-                TAG,
-                "Device: ${gatt.device.address}"
-            )
-
-            Log.d(
-                TAG,
-                "TX: ${tx?.uuid}"
-            )
-
-            Log.d(
-                TAG,
-                "RX: ${rx?.uuid}"
-            )
-
-            Log.d(
-                TAG,
-                "RX2: ${rx2?.uuid}"
-            )
-
-            Log.d(
-                TAG,
-                "=================================================="
-            )
         }
 
         fun clearGatt() {
+
+            Log.d(
+                TAG,
+                "Clearing GATT transport"
+            )
 
             activeGatt = null
 
@@ -140,11 +145,6 @@ class AlxBleTransportModule(
             rx2NotificationsEnabled = false
 
             instance?.clearPendingOperations()
-
-            Log.d(
-                TAG,
-                "GATT transport state cleared"
-            )
         }
 
         // =====================================================================
@@ -156,13 +156,11 @@ class AlxBleTransportModule(
             data: ByteArray
         ): Boolean {
 
-            return instance?.sendBytesInternal(
-                data
-            ) ?: run {
+            return instance?.sendBytesInternal(data) ?: run {
 
                 Log.e(
                     TAG,
-                    "Cannot send: transport instance unavailable"
+                    "sendBytes(): transport instance is null"
                 )
 
                 false
@@ -170,7 +168,7 @@ class AlxBleTransportModule(
         }
 
         // =====================================================================
-        // DESCRIPTOR CALLBACK
+        // GATT CALLBACKS
         // =====================================================================
 
         fun onDescriptorWrite(
@@ -183,15 +181,8 @@ class AlxBleTransportModule(
                 gatt,
                 descriptor,
                 status
-            ) ?: Log.e(
-                TAG,
-                "Cannot handle descriptor write: instance unavailable"
             )
         }
-
-        // =====================================================================
-        // CHARACTERISTIC CHANGED
-        // =====================================================================
 
         fun onCharacteristicChanged(
             characteristic: BluetoothGattCharacteristic,
@@ -201,15 +192,8 @@ class AlxBleTransportModule(
             instance?.handleCharacteristicChanged(
                 characteristic,
                 value
-            ) ?: Log.e(
-                TAG,
-                "Cannot handle characteristic change: instance unavailable"
             )
         }
-
-        // =====================================================================
-        // CHARACTERISTIC READ
-        // =====================================================================
 
         fun onCharacteristicRead(
             gatt: BluetoothGatt,
@@ -223,9 +207,6 @@ class AlxBleTransportModule(
                 characteristic,
                 value,
                 status
-            ) ?: Log.e(
-                TAG,
-                "Cannot handle characteristic read: instance unavailable"
             )
         }
 
@@ -236,18 +217,24 @@ class AlxBleTransportModule(
             status: Int
         ) {
 
-            val value =
-                characteristic.value
-                    ?: ByteArray(0)
-
             instance?.handleCharacteristicRead(
                 gatt,
                 characteristic,
-                value,
+                characteristic.value ?: ByteArray(0),
                 status
-            ) ?: Log.e(
-                TAG,
-                "Cannot handle characteristic read: instance unavailable"
+            )
+        }
+
+        fun onCharacteristicWrite(
+            gatt: BluetoothGatt,
+            characteristic: BluetoothGattCharacteristic,
+            status: Int
+        ) {
+
+            instance?.handleCharacteristicWrite(
+                gatt,
+                characteristic,
+                status
             )
         }
     }
@@ -262,7 +249,7 @@ class AlxBleTransportModule(
 
         Log.d(
             TAG,
-            "$MODULE_NAME initialized"
+            "AlxBleTransport initialized"
         )
     }
 
@@ -273,26 +260,20 @@ class AlxBleTransportModule(
     // PENDING OPERATIONS
     // =========================================================================
 
-    private var pendingEnableAllPromise:
-        Promise? = null
+    private var pendingEnableAllPromise: Promise? = null
 
-    private var pendingRxNotificationPromise:
-        Promise? = null
+    private var pendingRxNotificationPromise: Promise? = null
 
-    private var pendingRx2NotificationPromise:
-        Promise? = null
+    private var pendingRx2NotificationPromise: Promise? = null
 
-    private var pendingReadPromise:
-        Promise? = null
+    private var pendingReadPromise: Promise? = null
 
-    private var pendingReadSource:
-        String? = null
+    private var pendingReadSource: String? = null
 
-    /**
-     * Android GATT operations must be serialized.
+    /*
+     * Android GATT allows only one descriptor operation at a time.
      */
-    private var descriptorOperationInProgress =
-        false
+    private var descriptorOperationInProgress = false
 
     private fun clearPendingRead() {
 
@@ -300,12 +281,10 @@ class AlxBleTransportModule(
         pendingReadSource = null
     }
 
-    private fun clearPendingOperations() {
+    internal fun clearPendingOperations() {
 
         pendingEnableAllPromise = null
-
         pendingRxNotificationPromise = null
-
         pendingRx2NotificationPromise = null
 
         clearPendingRead()
@@ -324,17 +303,7 @@ class AlxBleTransportModule(
 
         try {
 
-            if (
-                !reactContext
-                    .hasActiveCatalystInstance()
-            ) {
-
-                Log.w(
-                    TAG,
-                    "React context inactive; " +
-                        "dropping event=$eventName"
-                )
-
+            if (!reactContext.hasActiveCatalystInstance()) {
                 return
             }
 
@@ -352,7 +321,7 @@ class AlxBleTransportModule(
 
             Log.e(
                 TAG,
-                "Failed to emit event: $eventName",
+                "Event emission failed: $eventName",
                 e
             )
         }
@@ -364,7 +333,8 @@ class AlxBleTransportModule(
         error: String? = null
     ) {
 
-        val event =
+        emitEvent(
+            EVENT_NOTIFICATION_ENABLED,
             Arguments.createMap().apply {
 
                 putString(
@@ -385,10 +355,6 @@ class AlxBleTransportModule(
                     )
                 }
             }
-
-        emitEvent(
-            EVENT_NOTIFICATION_ENABLED,
-            event
         )
     }
 
@@ -417,12 +383,16 @@ class AlxBleTransportModule(
                 return
             }
 
-            txCharacteristic =
-                characteristic
+            txCharacteristic = characteristic
 
             Log.d(
                 TAG,
-                "TX selected: ${characteristic.uuid}"
+                "TX characteristic configured: ${characteristic.uuid}"
+            )
+
+            Log.d(
+                TAG,
+                "TX properties: ${propertiesToString(characteristic.properties)}"
             )
 
             promise.resolve(
@@ -448,12 +418,6 @@ class AlxBleTransportModule(
             )
 
         } catch (e: Exception) {
-
-            Log.e(
-                TAG,
-                "Failed to set TX characteristic",
-                e
-            )
 
             promise.reject(
                 "ALX_TX_ERROR",
@@ -489,11 +453,8 @@ class AlxBleTransportModule(
                 return
             }
 
-            val properties =
-                characteristic.properties
-
             val supportsNotify =
-                properties and
+                characteristic.properties and
                     BluetoothGattCharacteristic
                         .PROPERTY_NOTIFY != 0
 
@@ -501,19 +462,13 @@ class AlxBleTransportModule(
 
                 promise.reject(
                     "ALX_NOTIFY_UNSUPPORTED",
-                    "Characteristic does not support notifications: $uuid"
+                    "RX characteristic does not support notifications"
                 )
 
                 return
             }
 
-            rxCharacteristic =
-                characteristic
-
-            Log.d(
-                TAG,
-                "RX selected: ${characteristic.uuid}"
-            )
+            rxCharacteristic = characteristic
 
             promise.resolve(
                 Arguments.createMap().apply {
@@ -530,7 +485,9 @@ class AlxBleTransportModule(
 
                     putString(
                         "properties",
-                        propertiesToString(properties)
+                        propertiesToString(
+                            characteristic.properties
+                        )
                     )
 
                     putBoolean(
@@ -541,12 +498,6 @@ class AlxBleTransportModule(
             )
 
         } catch (e: Exception) {
-
-            Log.e(
-                TAG,
-                "Failed to set RX characteristic",
-                e
-            )
 
             promise.reject(
                 "ALX_RX_ERROR",
@@ -567,9 +518,9 @@ class AlxBleTransportModule(
     ) {
 
         readCharacteristic(
-            characteristic = rxCharacteristic,
-            source = "RX",
-            promise = promise
+            rxCharacteristic,
+            "RX",
+            promise
         )
     }
 
@@ -583,9 +534,9 @@ class AlxBleTransportModule(
     ) {
 
         readCharacteristic(
-            characteristic = rx2Characteristic,
-            source = "RX2",
-            promise = promise
+            rx2Characteristic,
+            "RX2",
+            promise
         )
     }
 
@@ -600,8 +551,7 @@ class AlxBleTransportModule(
         promise: Promise
     ) {
 
-        val gatt =
-            activeGatt
+        val gatt = activeGatt
 
         if (gatt == null) {
 
@@ -652,17 +602,14 @@ class AlxBleTransportModule(
 
             promise.reject(
                 "ALX_GATT_BUSY",
-                "A GATT descriptor operation is already in progress"
+                "A descriptor operation is already in progress"
             )
 
             return
         }
 
-        pendingReadPromise =
-            promise
-
-        pendingReadSource =
-            source
+        pendingReadPromise = promise
+        pendingReadSource = source
 
         val started =
             try {
@@ -675,7 +622,7 @@ class AlxBleTransportModule(
 
                 Log.e(
                     TAG,
-                    "Characteristic read failed to start",
+                    "$source read threw exception",
                     e
                 )
 
@@ -690,14 +637,7 @@ class AlxBleTransportModule(
                 "ALX_${source}_READ_FAILED",
                 "BluetoothGatt.readCharacteristic() failed to start"
             )
-
-            return
         }
-
-        Log.d(
-            TAG,
-            "Read started: $source ${characteristic.uuid}"
-        )
     }
 
     // =========================================================================
@@ -709,8 +649,7 @@ class AlxBleTransportModule(
         promise: Promise
     ) {
 
-        val gatt =
-            activeGatt
+        val gatt = activeGatt
 
         if (gatt == null) {
 
@@ -722,8 +661,7 @@ class AlxBleTransportModule(
             return
         }
 
-        val rx =
-            rxCharacteristic
+        val rx = rxCharacteristic
 
         if (rx == null) {
 
@@ -738,7 +676,6 @@ class AlxBleTransportModule(
         if (rxNotificationsEnabled) {
 
             promise.resolve(true)
-
             return
         }
 
@@ -750,7 +687,7 @@ class AlxBleTransportModule(
 
             promise.reject(
                 "ALX_NOTIFY_UNSUPPORTED",
-                "RX characteristic does not support notifications"
+                "RX does not support notifications"
             )
 
             return
@@ -760,7 +697,7 @@ class AlxBleTransportModule(
 
             promise.reject(
                 "ALX_GATT_BUSY",
-                "A GATT descriptor operation is already in progress"
+                "Another descriptor operation is active"
             )
 
             return
@@ -770,45 +707,31 @@ class AlxBleTransportModule(
 
             promise.reject(
                 "ALX_GATT_BUSY",
-                "RX notification operation is already in progress"
+                "RX notification operation is already active"
             )
 
             return
         }
 
-        pendingRxNotificationPromise =
-            promise
+        pendingRxNotificationPromise = promise
+        descriptorOperationInProgress = true
 
-        descriptorOperationInProgress =
-            true
-
-        val started =
-            configureNotification(
-                gatt = gatt,
-                characteristic = rx,
-                enable = true
+        if (
+            !configureNotification(
+                gatt,
+                rx,
+                true
             )
+        ) {
 
-        if (!started) {
-
-            descriptorOperationInProgress =
-                false
-
-            pendingRxNotificationPromise =
-                null
+            descriptorOperationInProgress = false
+            pendingRxNotificationPromise = null
 
             promise.reject(
                 "ALX_RX_NOTIFY_FAILED",
                 "Failed to start RX notification configuration"
             )
-
-            return
         }
-
-        Log.d(
-            TAG,
-            "RX notification request queued"
-        )
     }
 
     // =========================================================================
@@ -820,8 +743,7 @@ class AlxBleTransportModule(
         promise: Promise
     ) {
 
-        val gatt =
-            activeGatt
+        val gatt = activeGatt
 
         if (gatt == null) {
 
@@ -833,8 +755,7 @@ class AlxBleTransportModule(
             return
         }
 
-        val rx =
-            rxCharacteristic
+        val rx = rxCharacteristic
 
         if (rx == null) {
 
@@ -848,16 +769,12 @@ class AlxBleTransportModule(
 
         if (rxNotificationsEnabled) {
 
-            val rx2 =
-                rx2Characteristic
-
             if (
-                rx2 != null &&
+                rx2Characteristic != null &&
                 !rx2NotificationsEnabled
             ) {
 
-                pendingEnableAllPromise =
-                    promise
+                pendingEnableAllPromise = promise
 
                 startRx2NotificationConfiguration(
                     gatt
@@ -875,7 +792,7 @@ class AlxBleTransportModule(
 
             promise.reject(
                 "ALX_GATT_BUSY",
-                "A GATT descriptor operation is already in progress"
+                "Another descriptor operation is active"
             )
 
             return
@@ -885,32 +802,25 @@ class AlxBleTransportModule(
 
             promise.reject(
                 "ALX_GATT_BUSY",
-                "Notification enable operation is already in progress"
+                "Notification operation is already active"
             )
 
             return
         }
 
-        pendingEnableAllPromise =
-            promise
+        pendingEnableAllPromise = promise
+        descriptorOperationInProgress = true
 
-        descriptorOperationInProgress =
-            true
-
-        val started =
-            configureNotification(
-                gatt = gatt,
-                characteristic = rx,
-                enable = true
+        if (
+            !configureNotification(
+                gatt,
+                rx,
+                true
             )
+        ) {
 
-        if (!started) {
-
-            descriptorOperationInProgress =
-                false
-
-            pendingEnableAllPromise =
-                null
+            descriptorOperationInProgress = false
+            pendingEnableAllPromise = null
 
             promise.reject(
                 "ALX_RX_NOTIFY_FAILED",
@@ -920,7 +830,7 @@ class AlxBleTransportModule(
     }
 
     // =========================================================================
-    // ENABLE RX2
+    // ENABLE RX2 NOTIFICATIONS
     // =========================================================================
 
     @ReactMethod
@@ -928,8 +838,7 @@ class AlxBleTransportModule(
         promise: Promise
     ) {
 
-        val gatt =
-            activeGatt
+        val gatt = activeGatt
 
         if (gatt == null) {
 
@@ -941,8 +850,7 @@ class AlxBleTransportModule(
             return
         }
 
-        val rx2 =
-            rx2Characteristic
+        val rx2 = rx2Characteristic
 
         if (rx2 == null) {
 
@@ -957,7 +865,6 @@ class AlxBleTransportModule(
         if (rx2NotificationsEnabled) {
 
             promise.resolve(true)
-
             return
         }
 
@@ -969,7 +876,7 @@ class AlxBleTransportModule(
 
             promise.reject(
                 "ALX_NOTIFY_UNSUPPORTED",
-                "RX2 characteristic does not support notifications"
+                "RX2 does not support notifications"
             )
 
             return
@@ -979,7 +886,7 @@ class AlxBleTransportModule(
 
             promise.reject(
                 "ALX_GATT_BUSY",
-                "A GATT descriptor operation is already in progress"
+                "Another descriptor operation is active"
             )
 
             return
@@ -989,32 +896,25 @@ class AlxBleTransportModule(
 
             promise.reject(
                 "ALX_GATT_BUSY",
-                "RX2 notification operation is already in progress"
+                "RX2 notification operation is already active"
             )
 
             return
         }
 
-        pendingRx2NotificationPromise =
-            promise
+        pendingRx2NotificationPromise = promise
+        descriptorOperationInProgress = true
 
-        descriptorOperationInProgress =
-            true
-
-        val started =
-            configureNotification(
-                gatt = gatt,
-                characteristic = rx2,
-                enable = true
+        if (
+            !configureNotification(
+                gatt,
+                rx2,
+                true
             )
+        ) {
 
-        if (!started) {
-
-            descriptorOperationInProgress =
-                false
-
-            pendingRx2NotificationPromise =
-                null
+            descriptorOperationInProgress = false
+            pendingRx2NotificationPromise = null
 
             promise.reject(
                 "ALX_RX2_NOTIFY_FAILED",
@@ -1034,18 +934,7 @@ class AlxBleTransportModule(
         enable: Boolean
     ): Boolean {
 
-        val source =
-            characteristicSource(
-                characteristic
-            )
-
         if (gatt !== activeGatt) {
-
-            Log.e(
-                TAG,
-                "Cannot configure $source: inactive GATT"
-            )
-
             return false
         }
 
@@ -1053,20 +942,7 @@ class AlxBleTransportModule(
             characteristic.getDescriptor(
                 CCCD_UUID
             )
-
-        if (descriptor == null) {
-
-            Log.e(
-                TAG,
-                "CCCD not found: $source ${characteristic.uuid}"
-            )
-
-            return false
-        }
-
-        // ---------------------------------------------------------------------
-        // Local notification registration.
-        // ---------------------------------------------------------------------
+                ?: return false
 
         val localResult =
             try {
@@ -1076,36 +952,14 @@ class AlxBleTransportModule(
                     enable
                 )
 
-            } catch (e: Exception) {
-
-                Log.e(
-                    TAG,
-                    "setCharacteristicNotification failed: $source",
-                    e
-                )
+            } catch (_: Exception) {
 
                 false
             }
 
         if (!localResult) {
-
-            Log.e(
-                TAG,
-                "Local notification registration failed: $source"
-            )
-
             return false
         }
-
-        // ---------------------------------------------------------------------
-        // CCCD.
-        //
-        // Equivalent to the Windows tester:
-        //
-        // WriteClientCharacteristicConfigurationDescriptorAsync(
-        //     Notify
-        // )
-        // ---------------------------------------------------------------------
 
         descriptor.value =
             if (enable) {
@@ -1119,46 +973,21 @@ class AlxBleTransportModule(
                     .DISABLE_NOTIFICATION_VALUE
             }
 
-        val started =
-            try {
+        return try {
 
-                @Suppress("DEPRECATION")
-                gatt.writeDescriptor(
-                    descriptor
-                )
-
-            } catch (e: Exception) {
-
-                Log.e(
-                    TAG,
-                    "CCCD write failed to start: $source",
-                    e
-                )
-
-                false
-            }
-
-        if (started) {
-
-            Log.d(
-                TAG,
-                "CCCD write queued: $source"
-
+            @Suppress("DEPRECATION")
+            gatt.writeDescriptor(
+                descriptor
             )
 
-        } else {
+        } catch (_: Exception) {
 
-            Log.e(
-                TAG,
-                "CCCD write failed to start: $source"
-            )
+            false
         }
-
-        return started
     }
 
     // =========================================================================
-    // DESCRIPTOR CALLBACK
+    // CCCD CALLBACK
     // =========================================================================
 
     private fun handleDescriptorWrite(
@@ -1168,12 +997,6 @@ class AlxBleTransportModule(
     ) {
 
         if (gatt !== activeGatt) {
-
-            Log.w(
-                TAG,
-                "Ignoring descriptor callback from inactive GATT"
-            )
-
             return
         }
 
@@ -1184,53 +1007,8 @@ class AlxBleTransportModule(
         val characteristic =
             descriptor.characteristic
 
-        val source =
-            characteristicSource(
-                characteristic
-            )
-
         val success =
             status == BluetoothGatt.GATT_SUCCESS
-
-        Log.d(
-            TAG,
-            "=================================================="
-        )
-
-        Log.d(
-            TAG,
-            "CCCD CALLBACK"
-        )
-
-        Log.d(
-            TAG,
-            "Source: $source"
-        )
-
-        Log.d(
-            TAG,
-            "Characteristic: ${characteristic.uuid}"
-        )
-
-        Log.d(
-            TAG,
-            "Descriptor: ${descriptor.uuid}"
-        )
-
-        Log.d(
-            TAG,
-            "Status: $status"
-        )
-
-        Log.d(
-            TAG,
-            "Success: $success"
-        )
-
-        Log.d(
-            TAG,
-            "=================================================="
-        )
 
         when {
 
@@ -1253,14 +1031,7 @@ class AlxBleTransportModule(
 
             else -> {
 
-                Log.w(
-                    TAG,
-                    "CCCD belongs to unknown characteristic: " +
-                        characteristic.uuid
-                )
-
-                descriptorOperationInProgress =
-                    false
+                descriptorOperationInProgress = false
             }
         }
     }
@@ -1275,11 +1046,8 @@ class AlxBleTransportModule(
         status: Int
     ) {
 
-        descriptorOperationInProgress =
-            false
-
-        rxNotificationsEnabled =
-            success
+        descriptorOperationInProgress = false
+        rxNotificationsEnabled = success
 
         emitNotificationEvent(
             source = "RX",
@@ -1294,8 +1062,7 @@ class AlxBleTransportModule(
 
         pendingRxNotificationPromise?.let { promise ->
 
-            pendingRxNotificationPromise =
-                null
+            pendingRxNotificationPromise = null
 
             if (success) {
 
@@ -1310,22 +1077,13 @@ class AlxBleTransportModule(
             }
         }
 
-        /*
-         * enableNotifications() requested RX + RX2.
-         *
-         * RX must finish before RX2 because GATT operations are serialized.
-         */
-        pendingEnableAllPromise?.let {
+        pendingEnableAllPromise?.let { promise ->
 
             if (!success) {
 
-                val promise =
-                    pendingEnableAllPromise
+                pendingEnableAllPromise = null
 
-                pendingEnableAllPromise =
-                    null
-
-                promise?.reject(
+                promise.reject(
                     "ALX_RX_NOTIFY_FAILED",
                     "RX CCCD write failed: $status"
                 )
@@ -1348,11 +1106,8 @@ class AlxBleTransportModule(
         status: Int
     ) {
 
-        descriptorOperationInProgress =
-            false
-
-        rx2NotificationsEnabled =
-            success
+        descriptorOperationInProgress = false
+        rx2NotificationsEnabled = success
 
         emitNotificationEvent(
             source = "RX2",
@@ -1367,8 +1122,7 @@ class AlxBleTransportModule(
 
         pendingRx2NotificationPromise?.let { promise ->
 
-            pendingRx2NotificationPromise =
-                null
+            pendingRx2NotificationPromise = null
 
             if (success) {
 
@@ -1385,8 +1139,7 @@ class AlxBleTransportModule(
 
         pendingEnableAllPromise?.let { promise ->
 
-            pendingEnableAllPromise =
-                null
+            pendingEnableAllPromise = null
 
             if (success) {
 
@@ -1410,19 +1163,16 @@ class AlxBleTransportModule(
         gatt: BluetoothGatt
     ) {
 
-        val promise =
-            pendingEnableAllPromise
-
-        val rx2 =
-            rx2Characteristic
+        val promise = pendingEnableAllPromise
+        val rx2 = rx2Characteristic
 
         if (
             rx2 == null ||
             rx2NotificationsEnabled
         ) {
 
-            pendingEnableAllPromise =
-                null
+            pendingEnableAllPromise = null
+            descriptorOperationInProgress = false
 
             promise?.resolve(true)
 
@@ -1431,34 +1181,28 @@ class AlxBleTransportModule(
 
         if (descriptorOperationInProgress) {
 
-            pendingEnableAllPromise =
-                null
+            pendingEnableAllPromise = null
 
             promise?.reject(
                 "ALX_GATT_BUSY",
-                "Another GATT descriptor operation is active"
+                "Another descriptor operation is active"
             )
 
             return
         }
 
-        descriptorOperationInProgress =
-            true
+        descriptorOperationInProgress = true
 
-        val started =
-            configureNotification(
-                gatt = gatt,
-                characteristic = rx2,
-                enable = true
+        if (
+            !configureNotification(
+                gatt,
+                rx2,
+                true
             )
+        ) {
 
-        if (!started) {
-
-            descriptorOperationInProgress =
-                false
-
-            pendingEnableAllPromise =
-                null
+            descriptorOperationInProgress = false
+            pendingEnableAllPromise = null
 
             promise?.reject(
                 "ALX_RX2_NOTIFY_FAILED",
@@ -1476,52 +1220,13 @@ class AlxBleTransportModule(
         value: ByteArray
     ) {
 
-        val uuid =
-            characteristic.uuid.toString()
-
         val source =
             characteristicSource(
                 characteristic
             )
 
-        Log.d(
-            TAG,
-            "=================================================="
-        )
-
-        Log.d(
-            TAG,
-            "BLE NOTIFICATION RECEIVED"
-        )
-
-        Log.d(
-            TAG,
-            "Source: $source"
-        )
-
-        Log.d(
-            TAG,
-            "UUID: $uuid"
-        )
-
-        Log.d(
-            TAG,
-            "Length: ${value.size}"
-        )
-
-        Log.d(
-            TAG,
-            "HEX: ${bytesToHex(value)}"
-        )
-
-        Log.d(
-            TAG,
-            "=================================================="
-        )
-
-        // ---------------------------------------------------------------------
-        // Raw transport event.
-        // ---------------------------------------------------------------------
+        val uuid =
+            characteristic.uuid.toString()
 
         emitEvent(
             EVENT_DATA_RECEIVED,
@@ -1554,43 +1259,16 @@ class AlxBleTransportModule(
             }
         )
 
-        // ---------------------------------------------------------------------
-        // IMPORTANT:
-        //
-        // Forward the exact bytes to the ALX protocol layer.
-        //
-        // This is the missing bridge in the previous version.
-        //
-        // BLE:
-        //
-        // Device
-        //   ↓
-        // BluetoothGatt
-        //   ↓
-        // Transport
-        //   ↓
-        // Protocol
-        //   ↓
-        // AlxBleFrameReceived
-        // ---------------------------------------------------------------------
+        when (source) {
 
-        if (
-            source == "RX" ||
-            source == "RX2"
-        ) {
+            "RX",
+            "RX2" -> {
 
-            AlxBleProtocolModule.onBleDataReceived(
-                source,
-                value
-            )
-
-        } else {
-
-            Log.w(
-                TAG,
-                "Notification received from unknown characteristic; " +
-                    "protocol parser not called"
-            )
+                AlxBleProtocolModule.onBleDataReceived(
+                    source,
+                    value
+                )
+            }
         }
     }
 
@@ -1606,17 +1284,8 @@ class AlxBleTransportModule(
     ) {
 
         if (gatt !== activeGatt) {
-
-            Log.w(
-                TAG,
-                "Ignoring characteristic read from inactive GATT"
-            )
-
             return
         }
-
-        val uuid =
-            characteristic.uuid.toString()
 
         val source =
             characteristicSource(
@@ -1626,37 +1295,12 @@ class AlxBleTransportModule(
         val success =
             status == BluetoothGatt.GATT_SUCCESS
 
-        val hex =
-            bytesToHex(value)
-
-        Log.d(
-            TAG,
-            "Read result: source=$source " +
-                "status=$status " +
-                "length=${value.size}"
-        )
-
-        if (!success) {
-
-            Log.e(
-                TAG,
-                "Characteristic read failed: " +
-                    "source=$source status=$status"
-            )
-        }
-
         val promise =
             pendingReadPromise
 
         clearPendingRead()
 
         if (promise == null) {
-
-            Log.w(
-                TAG,
-                "Read callback received without pending promise"
-            )
-
             return
         }
 
@@ -1670,6 +1314,9 @@ class AlxBleTransportModule(
             return
         }
 
+        val hex =
+            bytesToHex(value)
+
         emitEvent(
             EVENT_DATA_RECEIVED,
             Arguments.createMap().apply {
@@ -1681,7 +1328,7 @@ class AlxBleTransportModule(
 
                 putString(
                     "uuid",
-                    uuid
+                    characteristic.uuid.toString()
                 )
 
                 putInt(
@@ -1716,7 +1363,7 @@ class AlxBleTransportModule(
 
                 putString(
                     "uuid",
-                    uuid
+                    characteristic.uuid.toString()
                 )
 
                 putInt(
@@ -1733,7 +1380,56 @@ class AlxBleTransportModule(
     }
 
     // =========================================================================
-    // SEND HEX
+    // TX WRITE CALLBACK
+    // =========================================================================
+
+    private fun handleCharacteristicWrite(
+        gatt: BluetoothGatt,
+        characteristic: BluetoothGattCharacteristic,
+        status: Int
+    ) {
+
+        if (gatt !== activeGatt) {
+            return
+        }
+
+        if (characteristic.uuid != TX_UUID) {
+            return
+        }
+
+        Log.d(
+            TAG,
+            "TX WRITE CALLBACK"
+        )
+
+        Log.d(
+            TAG,
+            "TX status: $status"
+        )
+
+        Log.d(
+            TAG,
+            "TX status name: ${gattStatusToString(status)}"
+        )
+
+        if (status == BluetoothGatt.GATT_SUCCESS) {
+
+            Log.d(
+                TAG,
+                "TX WRITE SUCCESS"
+            )
+
+        } else {
+
+            Log.e(
+                TAG,
+                "TX WRITE FAILED: $status (${gattStatusToString(status)})"
+            )
+        }
+    }
+
+    // =========================================================================
+    // SEND
     // =========================================================================
 
     @ReactMethod
@@ -1753,8 +1449,7 @@ class AlxBleTransportModule(
 
             promise.reject(
                 "ALX_INVALID_DATA",
-                e.message
-                    ?: "Invalid HEX data"
+                e.message ?: "Invalid HEX data"
             )
         }
     }
@@ -1776,8 +1471,7 @@ class AlxBleTransportModule(
 
             promise.reject(
                 "ALX_INVALID_DATA",
-                e.message
-                    ?: "Invalid HEX data"
+                e.message ?: "Invalid HEX data"
             )
         }
     }
@@ -1791,27 +1485,45 @@ class AlxBleTransportModule(
         data: ByteArray
     ): Boolean {
 
-        val gatt =
-            activeGatt
+        Log.d(
+            TAG,
+            "=============================================="
+        )
+
+        Log.d(
+            TAG,
+            "TX WRITE REQUEST"
+        )
+
+        Log.d(
+            TAG,
+            "Data: ${bytesToHex(data)}"
+        )
+
+        Log.d(
+            TAG,
+            "Length: ${data.size}"
+        )
+
+        val gatt = activeGatt
 
         if (gatt == null) {
 
             Log.e(
                 TAG,
-                "Cannot send: GATT not connected"
+                "TX REJECTED: activeGatt == null"
             )
 
             return false
         }
 
-        val tx =
-            txCharacteristic
+        val tx = txCharacteristic
 
         if (tx == null) {
 
             Log.e(
                 TAG,
-                "Cannot send: TX not configured"
+                "TX REJECTED: txCharacteristic == null"
             )
 
             return false
@@ -1821,24 +1533,56 @@ class AlxBleTransportModule(
 
             Log.e(
                 TAG,
-                "Cannot send empty data"
+                "TX REJECTED: empty data"
             )
 
             return false
         }
 
-        val properties =
-            tx.properties
+        if (gatt !== activeGatt) {
+
+            Log.e(
+                TAG,
+                "TX REJECTED: GATT object changed"
+            )
+
+            return false
+        }
+
+        Log.d(
+            TAG,
+            "GATT      : $gatt"
+        )
+
+        Log.d(
+            TAG,
+            "TX UUID   : ${tx.uuid}"
+        )
+
+        Log.d(
+            TAG,
+            "TX props  : ${propertiesToString(tx.properties)}"
+        )
 
         val supportsWrite =
-            properties and
+            tx.properties and
                 BluetoothGattCharacteristic
                     .PROPERTY_WRITE != 0
 
         val supportsWriteWithoutResponse =
-            properties and
+            tx.properties and
                 BluetoothGattCharacteristic
                     .PROPERTY_WRITE_NO_RESPONSE != 0
+
+        Log.d(
+            TAG,
+            "WRITE supported: $supportsWrite"
+        )
+
+        Log.d(
+            TAG,
+            "WRITE_NO_RESPONSE supported: $supportsWriteWithoutResponse"
+        )
 
         if (
             !supportsWrite &&
@@ -1847,19 +1591,18 @@ class AlxBleTransportModule(
 
             Log.e(
                 TAG,
-                "TX does not support WRITE or WRITE_NO_RESPONSE"
+                "TX REJECTED: characteristic is not writable"
             )
 
             return false
         }
 
         /*
-         * Match the Windows tester:
+         * Windows tester uses:
          *
-         * GattWriteOption.WriteWithResponse is preferred.
+         * GattWriteOption.WriteWithResponse
          *
-         * Only fall back to WriteWithoutResponse when normal WRITE
-         * is unavailable.
+         * Therefore WRITE is preferred.
          */
         val writeType =
             if (supportsWrite) {
@@ -1873,84 +1616,119 @@ class AlxBleTransportModule(
                     .WRITE_TYPE_NO_RESPONSE
             }
 
-        tx.writeType =
-            writeType
-
-        tx.value =
-            data
-
         Log.d(
             TAG,
-            "=================================================="
+            "Write type: ${writeTypeToString(writeType)}"
         )
 
-        Log.d(
-            TAG,
-            "BLE TX"
-        )
+        /*
+         * Android 13 / API 33 introduced the non-deprecated overload:
+         *
+         * writeCharacteristic(characteristic, value, writeType)
+         *
+         * Use it when available because it gives us the actual GATT
+         * status immediately instead of only a Boolean.
+         */
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
 
-        Log.d(
-            TAG,
-            "Characteristic: ${tx.uuid}"
-        )
+            return try {
 
-        Log.d(
-            TAG,
-            "Write type: ${
-                if (
-                    writeType ==
-                    BluetoothGattCharacteristic
-                        .WRITE_TYPE_DEFAULT
-                ) {
-                    "WRITE_WITH_RESPONSE"
-                } else {
-                    "WRITE_WITHOUT_RESPONSE"
-                }
-            }"
-        )
+                val status =
+                    gatt.writeCharacteristic(
+                        tx,
+                        data,
+                        writeType
+                    )
 
-        Log.d(
-            TAG,
-            "Length: ${data.size}"
-        )
-
-        Log.d(
-            TAG,
-            "HEX: ${bytesToHex(data)}"
-        )
-
-        Log.d(
-            TAG,
-            "=================================================="
-        )
-
-        val started =
-            try {
-
-                gatt.writeCharacteristic(
-                    tx
+                Log.d(
+                    TAG,
+                    "writeCharacteristic() returned: $status"
                 )
+
+                Log.d(
+                    TAG,
+                    "writeCharacteristic() status: ${gattStatusToString(status)}"
+                )
+
+                if (status == BluetoothGatt.GATT_SUCCESS) {
+
+                    Log.d(
+                        TAG,
+                        "TX WRITE ACCEPTED"
+                    )
+
+                    true
+
+                } else {
+
+                    Log.e(
+                        TAG,
+                        "TX WRITE REJECTED: status=$status (${gattStatusToString(status)})"
+                    )
+
+                    false
+                }
 
             } catch (e: Exception) {
 
                 Log.e(
                     TAG,
-                    "Characteristic write failed to start",
+                    "TX WRITE EXCEPTION",
                     e
                 )
 
                 false
             }
 
-        if (!started) {
+        } else {
 
-            Log.e(
-                TAG,
-                "Characteristic write failed to start"
-            )
+            /*
+             * Older Android fallback.
+             */
+            tx.writeType = writeType
+            tx.value = data
+
+            return try {
+
+                @Suppress("DEPRECATION")
+                val started =
+                    gatt.writeCharacteristic(
+                        tx
+                    )
+
+                Log.d(
+                    TAG,
+                    "Legacy writeCharacteristic() returned: $started"
+                )
+
+                if (started) {
+
+                    Log.d(
+                        TAG,
+                        "TX WRITE ACCEPTED"
+                    )
+
+                } else {
+
+                    Log.e(
+                        TAG,
+                        "TX WRITE REJECTED by Android"
+                    )
+                }
+
+                started
+
+            } catch (e: Exception) {
+
+                Log.e(
+                    TAG,
+                    "TX WRITE EXCEPTION",
+                    e
+                )
+
+                false
+            }
         }
-
-        return started
     }
 
     private fun sendBytes(
@@ -1983,6 +1761,15 @@ class AlxBleTransportModule(
             return
         }
 
+        /*
+         * This means the Android GATT write was accepted/queued.
+         *
+         * The actual write completion is reported through
+         * onCharacteristicWrite().
+         *
+         * The protocol response is handled separately through RX
+         * notifications.
+         */
         promise.resolve(true)
     }
 
@@ -2105,9 +1892,6 @@ class AlxBleTransportModule(
         characteristic: BluetoothGattCharacteristic
     ): String {
 
-        val uuid =
-            characteristic.uuid
-
         return when {
 
             characteristic == rxCharacteristic ->
@@ -2116,11 +1900,14 @@ class AlxBleTransportModule(
             characteristic == rx2Characteristic ->
                 "RX2"
 
-            uuid == RX_UUID ->
+            characteristic.uuid == RX_UUID ->
                 "RX"
 
-            uuid == RX2_UUID ->
+            characteristic.uuid == RX2_UUID ->
                 "RX2"
+
+            characteristic.uuid == TX_UUID ->
+                "TX"
 
             else ->
                 "UNKNOWN"
@@ -2128,7 +1915,7 @@ class AlxBleTransportModule(
     }
 
     // =========================================================================
-    // PROPERTY LOGGING
+    // PROPERTY STRING
     // =========================================================================
 
     private fun propertiesToString(
@@ -2140,56 +1927,49 @@ class AlxBleTransportModule(
 
         if (
             properties and
-                BluetoothGattCharacteristic
-                    .PROPERTY_READ != 0
+                BluetoothGattCharacteristic.PROPERTY_READ != 0
         ) {
             result.add("READ")
         }
 
         if (
             properties and
-                BluetoothGattCharacteristic
-                    .PROPERTY_WRITE != 0
+                BluetoothGattCharacteristic.PROPERTY_WRITE != 0
         ) {
             result.add("WRITE")
         }
 
         if (
             properties and
-                BluetoothGattCharacteristic
-                    .PROPERTY_WRITE_NO_RESPONSE != 0
+                BluetoothGattCharacteristic.PROPERTY_WRITE_NO_RESPONSE != 0
         ) {
             result.add("WRITE_NO_RESPONSE")
         }
 
         if (
             properties and
-                BluetoothGattCharacteristic
-                    .PROPERTY_NOTIFY != 0
+                BluetoothGattCharacteristic.PROPERTY_NOTIFY != 0
         ) {
             result.add("NOTIFY")
         }
 
         if (
             properties and
-                BluetoothGattCharacteristic
-                    .PROPERTY_INDICATE != 0
+                BluetoothGattCharacteristic.PROPERTY_INDICATE != 0
         ) {
             result.add("INDICATE")
         }
 
         if (
             properties and
-                BluetoothGattCharacteristic
-                    .PROPERTY_SIGNED_WRITE != 0
+                BluetoothGattCharacteristic.PROPERTY_SIGNED_WRITE != 0
         ) {
             result.add("SIGNED_WRITE")
         }
 
         if (
             properties and
-                BluetoothGattCharacteristic
-                    .PROPERTY_EXTENDED_PROPS != 0
+                BluetoothGattCharacteristic.PROPERTY_EXTENDED_PROPS != 0
         ) {
             result.add("EXTENDED_PROPS")
         }
@@ -2198,6 +1978,102 @@ class AlxBleTransportModule(
             "NONE"
         } else {
             result.joinToString("|")
+        }
+    }
+
+    // =========================================================================
+    // GATT STATUS
+    // =========================================================================
+
+    private fun gattStatusToString(
+        status: Int
+    ): String {
+
+        return when (status) {
+
+            BluetoothGatt.GATT_SUCCESS ->
+                "GATT_SUCCESS"
+
+            1 ->
+                "GATT_INVALID_HANDLE"
+
+            2 ->
+                "GATT_READ_NOT_PERMITTED"
+
+            3 ->
+                "GATT_WRITE_NOT_PERMITTED"
+
+            4 ->
+                "GATT_INVALID_PDU"
+
+            5 ->
+                "GATT_INSUFFICIENT_AUTHENTICATION"
+
+            6 ->
+                "GATT_REQUEST_NOT_SUPPORTED"
+
+            7 ->
+                "GATT_INVALID_OFFSET"
+
+            8 ->
+                "GATT_INSUFFICIENT_AUTHORIZATION"
+
+            9 ->
+                "GATT_PREPARE_Q_FULL"
+
+            10 ->
+                "GATT_NOT_FOUND"
+
+            11 ->
+                "GATT_NOT_LONG"
+
+            12 ->
+                "GATT_INSUFFICIENT_KEY_SIZE"
+
+            13 ->
+                "GATT_INVALID_ATTRIBUTE_LENGTH"
+
+            14 ->
+                "GATT_ERR_UNLIKELY"
+
+            15 ->
+                "GATT_INSUFFICIENT_ENCRYPTION"
+
+            16 ->
+                "GATT_UNSUPPORT_GRP_TYPE"
+
+            17 ->
+                "GATT_UNKNOWN_ERROR"
+
+            else ->
+                "UNKNOWN"
+        }
+    }
+
+    // =========================================================================
+    // WRITE TYPE
+    // =========================================================================
+
+    private fun writeTypeToString(
+        writeType: Int
+    ): String {
+
+        return when (writeType) {
+
+            BluetoothGattCharacteristic
+                .WRITE_TYPE_DEFAULT ->
+                "WRITE_WITH_RESPONSE"
+
+            BluetoothGattCharacteristic
+                .WRITE_TYPE_NO_RESPONSE ->
+                "WRITE_NO_RESPONSE"
+
+            BluetoothGattCharacteristic
+                .WRITE_TYPE_SIGNED ->
+                "WRITE_SIGNED"
+
+            else ->
+                "UNKNOWN($writeType)"
         }
     }
 
@@ -2263,14 +2139,12 @@ class AlxBleTransportModule(
     fun addListener(
         eventName: String
     ) {
-        // Required by NativeEventEmitter.
     }
 
     @ReactMethod
     fun removeListeners(
         count: Int
     ) {
-        // Required by NativeEventEmitter.
     }
 
     // =========================================================================
@@ -2279,16 +2153,12 @@ class AlxBleTransportModule(
 
     override fun invalidate() {
 
-        Log.d(
-            TAG,
-            "$MODULE_NAME invalidating"
-        )
-
         clearPendingOperations()
-
         clearGatt()
 
-        instance = null
+        if (instance === this) {
+            instance = null
+        }
 
         super.invalidate()
     }

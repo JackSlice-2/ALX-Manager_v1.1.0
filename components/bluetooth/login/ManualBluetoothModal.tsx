@@ -26,49 +26,6 @@ type Props = {
   onClose: () => void;
 };
 
-/**
- * BLE logging
- *
- * Keep logs focused on state transitions and failures.
- * Avoid logging passwords, repeated scan results, or
- * listener lifecycle noise.
- */
-const bleLog = (
-  category: string,
-  message: string,
-  data?: unknown
-) => {
-  if (data !== undefined) {
-    console.log(`[BLE] [${category}] ${message}`, data);
-  } else {
-    console.log(`[BLE] [${category}] ${message}`);
-  }
-};
-
-const bleError = (
-  category: string,
-  message: string,
-  error?: unknown
-) => {
-  if (error !== undefined) {
-    console.error(`[BLE] [${category}] ${message}`, error);
-  } else {
-    console.error(`[BLE] [${category}] ${message}`);
-  }
-};
-
-const bleWarn = (
-  category: string,
-  message: string,
-  data?: unknown
-) => {
-  if (data !== undefined) {
-    console.warn(`[BLE] [${category}] ${message}`, data);
-  } else {
-    console.warn(`[BLE] [${category}] ${message}`);
-  }
-};
-
 const ManualBluetoothModal: React.FC<Props> = ({
   visible,
   onClose,
@@ -89,9 +46,6 @@ const ManualBluetoothModal: React.FC<Props> = ({
   const [notificationsEnabled, setNotificationsEnabled] =
     useState(false);
   const [protocolReady, setProtocolReady] = useState(false);
-
-  const [readingRx, setReadingRx] = useState(false);
-  const [readingRx2, setReadingRx2] = useState(false);
 
   const t = useT();
 
@@ -118,10 +72,7 @@ const ManualBluetoothModal: React.FC<Props> = ({
 
     Object.entries(modules).forEach(([name, module]) => {
       if (!module) {
-        bleError(
-          'NATIVE',
-          `${name} native module is unavailable`
-        );
+        
       }
     });
   }, [
@@ -153,11 +104,7 @@ const ManualBluetoothModal: React.FC<Props> = ({
         setGattReady(gattState?.ready === true);
       })
       .catch((error: unknown) => {
-        bleError(
-          'GATT',
-          'Failed to query GATT state',
-          error
-        );
+        
       });
   }, [AlxBleGatt]);
 
@@ -176,11 +123,7 @@ const ManualBluetoothModal: React.FC<Props> = ({
 
     AlxBleTransport.getTransportState().catch(
       (error: unknown) => {
-        bleError(
-          'TRANSPORT',
-          'Failed to query transport state',
-          error
-        );
+       
       }
     );
   }, [AlxBleTransport]);
@@ -203,11 +146,7 @@ const ManualBluetoothModal: React.FC<Props> = ({
         setProtocolReady(true);
       })
       .catch((error: unknown) => {
-        bleError(
-          'PROTOCOL',
-          'Failed to query protocol state',
-          error
-        );
+       
       });
   }, [AlxBleProtocol]);
 
@@ -220,12 +159,7 @@ const ManualBluetoothModal: React.FC<Props> = ({
       DeviceEventEmitter.addListener(
         'AlxBleDataReceived',
         (event) => {
-          bleLog('RX', 'BLE data received', {
-            source: event?.source,
-            uuid: event?.uuid,
-            length: event?.length,
-            hex: event?.hex,
-          });
+         
         }
       );
 
@@ -241,13 +175,7 @@ const ManualBluetoothModal: React.FC<Props> = ({
       DeviceEventEmitter.addListener(
         'AlxBleFrameReceived',
         (event) => {
-          bleLog('PROTOCOL', 'ALX frame received', {
-            direction: event?.direction,
-            command: event?.command,
-            payload: event?.payload,
-            crcValid: event?.crcValid,
-            hex: event?.hex,
-          });
+          
         }
       );
 
@@ -263,12 +191,7 @@ const ManualBluetoothModal: React.FC<Props> = ({
       DeviceEventEmitter.addListener(
         'AlxBleGattReady',
         (event) => {
-          bleLog('GATT', 'GATT ready', {
-            service: event?.service,
-            tx: event?.tx,
-            rx: event?.rx,
-            rx2: event?.rx2,
-          });
+          
 
           setGattReady(true);
 
@@ -289,11 +212,7 @@ const ManualBluetoothModal: React.FC<Props> = ({
       DeviceEventEmitter.addListener(
         'AlxBleGattFailed',
         (event) => {
-          bleError(
-            'GATT',
-            'GATT setup failed',
-            event
-          );
+         
 
           setGattReady(false);
           setNotificationsEnabled(false);
@@ -316,18 +235,11 @@ const ManualBluetoothModal: React.FC<Props> = ({
         'AlxBleNotificationEnabled',
         (event) => {
           if (event?.enabled === true) {
-            bleLog(
-              'TRANSPORT',
-              `${event?.source ?? 'BLE'} notifications enabled`
-            );
+           
 
             setNotificationsEnabled(true);
           } else {
-            bleError(
-              'TRANSPORT',
-              `${event?.source ?? 'BLE'} notifications failed`,
-              event?.error
-            );
+           
 
             setNotificationsEnabled(false);
           }
@@ -369,11 +281,7 @@ const ManualBluetoothModal: React.FC<Props> = ({
               );
 
             if (existingIndex === -1) {
-              bleLog('SCAN', 'ALX device found', {
-                name: device.name,
-                address: device.address,
-                rssi: device.rssi,
-              });
+              
 
               return [
                 ...currentDevices,
@@ -396,11 +304,7 @@ const ManualBluetoothModal: React.FC<Props> = ({
       emitter.addListener(
         'BluetoothScanFailed',
         (event) => {
-          bleError(
-            'SCAN',
-            'BLE scan failed',
-            event
-          );
+         
 
           setIsScanning(false);
         }
@@ -425,13 +329,7 @@ const ManualBluetoothModal: React.FC<Props> = ({
 
         await BluetoothHelper.startBleScan();
 
-        bleLog('SCAN', 'BLE scan started');
       } catch (error) {
-        bleError(
-          'SCAN',
-          'Failed to start BLE scan',
-          error
-        );
 
         setIsScanning(false);
       }
@@ -449,11 +347,7 @@ const ManualBluetoothModal: React.FC<Props> = ({
       ) {
         BluetoothHelper.stopBleScan().catch(
           (error: unknown) => {
-            bleWarn(
-              'SCAN',
-              'Failed to stop BLE scan',
-              error
-            );
+           
           }
         );
       }
@@ -485,11 +379,7 @@ const ManualBluetoothModal: React.FC<Props> = ({
               ? event
               : event?.address;
 
-          bleLog(
-            'CONNECTION',
-            'Bluetooth connected',
-            address
-          );
+          
 
           setIsConnecting(false);
           setConnectedAddress(
@@ -502,11 +392,7 @@ const ManualBluetoothModal: React.FC<Props> = ({
       emitter.addListener(
         'BluetoothDisconnected',
         (event) => {
-          bleLog(
-            'CONNECTION',
-            'Bluetooth disconnected',
-            event
-          );
+        
 
           const address =
             typeof event === 'string'
@@ -530,15 +416,7 @@ const ManualBluetoothModal: React.FC<Props> = ({
       emitter.addListener(
         'BluetoothPairingRequest',
         (event) => {
-          bleLog(
-            'PAIRING',
-            'Bluetooth pairing request',
-            {
-              address: event?.address,
-              variant: event?.variant,
-              variantName: event?.variantName,
-            }
-          );
+        
         }
       );
 
@@ -546,13 +424,7 @@ const ManualBluetoothModal: React.FC<Props> = ({
       emitter.addListener(
         'BluetoothBondStateChanged',
         (event) => {
-          bleLog(
-            'BOND',
-            `${event?.previousState ?? 'UNKNOWN'} → ${
-              event?.state ?? 'UNKNOWN'
-            }`,
-            event?.address
-          );
+          
         }
       );
 
@@ -579,11 +451,7 @@ const ManualBluetoothModal: React.FC<Props> = ({
       return;
     }
 
-    bleLog(
-      'UI',
-      'Device selected',
-      device.address
-    );
+   
 
     setSelectedDevice(device);
   };
@@ -607,10 +475,7 @@ const ManualBluetoothModal: React.FC<Props> = ({
     device: BluetoothDevice
   ) => {
     if (!BluetoothConnection) {
-      bleError(
-        'CONNECTION',
-        'BluetoothConnection unavailable'
-      );
+     
       return;
     }
 
@@ -618,10 +483,7 @@ const ManualBluetoothModal: React.FC<Props> = ({
       typeof BluetoothConnection.connectBleDevice !==
       'function'
     ) {
-      bleError(
-        'CONNECTION',
-        'connectBleDevice() unavailable'
-      );
+      
       return;
     }
 
@@ -630,27 +492,16 @@ const ManualBluetoothModal: React.FC<Props> = ({
       setGattReady(false);
       setNotificationsEnabled(false);
 
-      bleLog(
-        'CONNECTION',
-        'Connecting to BLE device',
-        device.address
-      );
+      
 
       await BluetoothConnection.connectBleDevice(
         device.address,
         password
       );
 
-      bleLog(
-        'CONNECTION',
-        'Connection request completed'
-      );
+      
     } catch (error) {
-      bleError(
-        'CONNECTION',
-        'Connection failed',
-        error
-      );
+     
 
       setIsConnecting(false);
       setConnectedAddress(null);
@@ -669,10 +520,7 @@ const ManualBluetoothModal: React.FC<Props> = ({
       typeof BluetoothConnection.disconnectBleDevice !==
         'function'
     ) {
-      bleWarn(
-        'CONNECTION',
-        'disconnectBleDevice() unavailable'
-      );
+     
       return;
     }
 
@@ -684,11 +532,7 @@ const ManualBluetoothModal: React.FC<Props> = ({
       setNotificationsEnabled(false);
       setIsConnecting(false);
     } catch (error) {
-      bleError(
-        'CONNECTION',
-        'Disconnect failed',
-        error
-      );
+    
     }
   };
 
@@ -708,129 +552,6 @@ const ManualBluetoothModal: React.FC<Props> = ({
     onClose();
   };
 
-  // =========================================================
-  // BLE test: RX read
-  // =========================================================
-
-  const readRx = async () => {
-    if (
-      !AlxBleTransport ||
-      typeof AlxBleTransport.readRx !== 'function'
-    ) {
-      bleError(
-        'TEST',
-        'readRx() unavailable'
-      );
-      return;
-    }
-
-    if (readingRx || readingRx2) {
-      return;
-    }
-
-    try {
-      setReadingRx(true);
-
-      bleLog('TEST', 'Reading RX');
-
-      const result =
-        await AlxBleTransport.readRx();
-
-      bleLog('TEST', 'RX read result', result);
-    } catch (error) {
-      bleError(
-        'TEST',
-        'RX read failed',
-        error
-      );
-    } finally {
-      setReadingRx(false);
-    }
-  };
-
-  // =========================================================
-  // BLE test: RX2 read
-  // =========================================================
-
-  const readRx2 = async () => {
-    if (
-      !AlxBleTransport ||
-      typeof AlxBleTransport.readRx2 !== 'function'
-    ) {
-      bleError(
-        'TEST',
-        'readRx2() unavailable'
-      );
-      return;
-    }
-
-    if (readingRx || readingRx2) {
-      return;
-    }
-
-    try {
-      setReadingRx2(true);
-
-      bleLog('TEST', 'Reading RX2');
-
-      const result =
-        await AlxBleTransport.readRx2();
-
-      bleLog(
-        'TEST',
-        'RX2 read result',
-        result
-      );
-    } catch (error) {
-      bleError(
-        'TEST',
-        'RX2 read failed',
-        error
-      );
-    } finally {
-      setReadingRx2(false);
-    }
-  };
-
-  // =========================================================
-  // BLE test: enable RX notifications
-  // =========================================================
-
-  const enableRxNotifications = async () => {
-    if (
-      !AlxBleTransport ||
-      typeof AlxBleTransport.enableRxNotifications !==
-        'function'
-    ) {
-      bleError(
-        'TEST',
-        'enableRxNotifications() unavailable'
-      );
-      return;
-    }
-
-    try {
-      bleLog(
-        'TEST',
-        'Enabling RX notifications'
-      );
-
-      const result =
-        await AlxBleTransport.enableRxNotifications();
-
-      bleLog(
-        'TEST',
-        'RX notification result',
-        result
-      );
-    } catch (error) {
-      bleError(
-        'TEST',
-        'RX notification enable failed',
-        error
-      );
-    }
-  };
 
   // =========================================================
   // Render
@@ -1130,75 +851,6 @@ const ManualBluetoothModal: React.FC<Props> = ({
                   </Text>
                 </View>
               )}
-
-            {/* BLE test buttons */}
-            <View style={styles.bleTestContainer}>
-
-              <TouchableOpacity
-                style={[
-                  styles.bleTestButton,
-                  readingRx &&
-                    styles.bleTestButtonDisabled,
-                ]}
-                disabled={
-                  readingRx || readingRx2
-                }
-                onPress={readRx}
-              >
-                <Text
-                  style={
-                    styles.bleTestButtonText
-                  }
-                >
-                  {readingRx
-                    ? 'Lendo RX...'
-                    : 'READ RX'}
-                </Text>
-              </TouchableOpacity>
-
-              <TouchableOpacity
-                style={[
-                  styles.bleTestButton,
-                  readingRx2 &&
-                    styles.bleTestButtonDisabled,
-                ]}
-                disabled={
-                  readingRx || readingRx2
-                }
-                onPress={readRx2}
-              >
-                <Text
-                  style={
-                    styles.bleTestButtonText
-                  }
-                >
-                  {readingRx2
-                    ? 'Lendo RX2...'
-                    : 'READ RX2'}
-                </Text>
-              </TouchableOpacity>
-
-              <TouchableOpacity
-                style={styles.bleTestButton}
-                onPress={
-                  enableRxNotifications
-                }
-                disabled={
-                  !gattReady ||
-                  readingRx ||
-                  readingRx2
-                }
-              >
-                <Text
-                  style={
-                    styles.bleTestButtonText
-                  }
-                >
-                  ENABLE RX NOTIFICATIONS
-                </Text>
-              </TouchableOpacity>
-
-            </View>
 
           </ScrollView>
 

@@ -1,5 +1,7 @@
 package com.allexo.alxmobile.ble
 
+import android.os.Handler
+import android.os.Looper
 import android.util.Log
 
 import com.facebook.react.bridge.Arguments
@@ -32,7 +34,10 @@ class AlxBleProtocolModule(
         private const val DIR_MASTER = 0x00
         private const val DIR_SLAVE = 0x01
 
-        // Commands from the known-good Windows implementation.
+        // =====================================================================
+        // COMMANDS
+        // =====================================================================
+
         private const val CMD_STATUS = 0x01
         private const val CMD_CONN = 0x02
         private const val CMD_PRG_RTC_R = 0x03
@@ -49,12 +54,16 @@ class AlxBleProtocolModule(
         private const val CMD_RESET = 0x37
         private const val CMD_IOS_R = 0x38
 
+        private const val MIN_FRAME_LENGTH = 5
+
+        private const val RESPONSE_TIMEOUT_MS = 5000L
+
         private var instance: AlxBleProtocolModule? = null
 
-        /**
-         * Allows the transport module to forward received BLE bytes
-         * directly into the protocol layer.
-         */
+        // =====================================================================
+        // TRANSPORT -> PROTOCOL
+        // =====================================================================
+
         @JvmStatic
         fun onBleDataReceived(
             source: String,
@@ -65,13 +74,34 @@ class AlxBleProtocolModule(
                 data
             )
         }
+
+        // =====================================================================
+        // GATT -> PROTOCOL
+        // =====================================================================
+
+        /**
+         * Called by BluetoothConnectionModule once:
+         *
+         * - GATT is connected
+         * - ALX service was found
+         * - TX was found
+         * - RX was found
+         *
+         * This sends the first real ALX protocol command.
+         */
+        @JvmStatic
+        fun onGattReady() {
+
+            instance?.sendStatusAutomatically()
+        }
     }
 
     // =========================================================================
-    // INITIALIZATION
+    // MODULE
     // =========================================================================
 
     init {
+
         instance = this
 
         Log.d(
@@ -80,19 +110,116 @@ class AlxBleProtocolModule(
         )
     }
 
-    override fun getName(): String {
-        return MODULE_NAME
+    override fun getName(): String =
+        MODULE_NAME
+
+    // =========================================================================
+    // RESPONSE STATE
+    // =========================================================================
+
+    private val handler =
+        Handler(
+            Looper.getMainLooper()
+        )
+
+    private var pendingCommand: Int? = null
+
+    private var pendingCommandPromise: Promise? = null
+
+    private var responseTimeoutRunnable: Runnable? = null
+
+    // =========================================================================
+    // RX BUFFER
+    // =========================================================================
+
+    private val rxBuffer =
+        ArrayList<Byte>()
+
+    // =========================================================================
+    // AUTOMATIC STATUS
+    // =========================================================================
+
+    /**
+     * First protocol command after GATT becomes ready.
+     *
+     * Exact Windows tester command:
+     *
+     * A5 00 01 00 00 00 00
+     *
+     * followed by CRC.
+     *
+     * We intentionally do NOT require a JS button for this.
+     */
+    private fun sendStatusAutomatically() {
+
+        /*
+         * Prevent duplicate automatic STATUS requests.
+         */
+        if (pendingCommand != null) {
+
+            Log.d(
+                TAG,
+                "STATUS not sent: protocol already has pending command"
+            )
+
+            return
+        }
+
+        val frame =
+            buildCommandFrame(
+                DIR_MASTER,
+                CMD_STATUS
+            )
+
+        Log.d(
+            TAG,
+            "GATT READY -> sending STATUS"
+        )
+
+        Log.d(
+            TAG,
+            "STATUS frame: ${bytesToHex(frame)}"
+        )
+
+        val started =
+            AlxBleTransportModule.sendBytes(
+                frame
+            )
+
+        if (!started) {
+
+            Log.e(
+                TAG,
+                "STATUS send failed: BLE transport rejected write"
+            )
+
+            return
+        }
+
+        /*
+         * There is no JS Promise for this automatic command.
+         *
+         * We still track the expected response so that when the
+         * device replies with:
+         *
+         *     DIR = 0x01
+         *     CMD = 0x01
+         *
+         * it is recognized as the STATUS response.
+         */
+        pendingCommand =
+            CMD_STATUS
+
+        pendingCommandPromise =
+            null
+
+        startResponseTimeout()
     }
 
     // =========================================================================
     // PUBLIC COMMANDS
     // =========================================================================
 
-    /**
-     * Windows:
-     *
-     * A5 00 01 00 00 00 00
-     */
     @ReactMethod
     fun sendStatus(
         promise: Promise
@@ -103,11 +230,6 @@ class AlxBleProtocolModule(
         )
     }
 
-    /**
-     * Windows:
-     *
-     * A5 00 02 00 00 00 00
-     */
     @ReactMethod
     fun sendConnectionCommand(
         promise: Promise
@@ -252,24 +374,12 @@ class AlxBleProtocolModule(
     // GENERIC COMMAND
     // =========================================================================
 
-    /**
-     * Send an ALX command with no payload.
-     *
-     * Wire format:
-     *
-     * A5 DIR CMD CRC_LO CRC_HI
-     *
-     * For the Windows tester's commands the base body is:
-     *
-     * A5 DIR CMD 00 00 00 00
-     *
-     * therefore the actual command frame is 9 bytes.
-     */
     @ReactMethod
     fun sendCommand(
         command: Int,
         promise: Promise
     ) {
+
         try {
 
             requireByte(
@@ -279,30 +389,17 @@ class AlxBleProtocolModule(
 
             val frame =
                 buildCommandFrame(
-                    direction = DIR_MASTER,
-                    command = command
+                    DIR_MASTER,
+                    command
                 )
 
-            logFrame(
-                "TX ${commandName(command)}",
-                frame
-            )
-
-            sendFrame(
+            sendProtocolCommand(
+                command,
                 frame,
                 promise
             )
 
         } catch (e: Exception) {
-
-            Log.e(
-                TAG,
-                "Failed to send command 0x" +
-                    command
-                        .toString(16)
-                        .uppercase(),
-                e
-            )
 
             promise.reject(
                 "ALX_PROTOCOL_ERROR",
@@ -313,17 +410,17 @@ class AlxBleProtocolModule(
         }
     }
 
-    /**
-     * Send a command with an arbitrary payload.
-     *
-     * This is retained for future protocol commands.
-     */
+    // =========================================================================
+    // COMMAND WITH PAYLOAD
+    // =========================================================================
+
     @ReactMethod
     fun sendCommandWithPayload(
         command: Int,
         payloadHex: String,
         promise: Promise
     ) {
+
         try {
 
             requireByte(
@@ -338,28 +435,18 @@ class AlxBleProtocolModule(
 
             val frame =
                 buildFrame(
-                    direction = DIR_MASTER,
-                    command = command,
-                    payload = payload
+                    DIR_MASTER,
+                    command,
+                    payload
                 )
 
-            logFrame(
-                "TX ${commandName(command)}",
-                frame
-            )
-
-            sendFrame(
+            sendProtocolCommand(
+                command,
                 frame,
                 promise
             )
 
         } catch (e: Exception) {
-
-            Log.e(
-                TAG,
-                "Failed to send command with payload",
-                e
-            )
 
             promise.reject(
                 "ALX_PROTOCOL_ERROR",
@@ -370,14 +457,16 @@ class AlxBleProtocolModule(
         }
     }
 
-    /**
-     * Send a complete raw ALX frame.
-     */
+    // =========================================================================
+    // RAW FRAME
+    // =========================================================================
+
     @ReactMethod
     fun sendRawFrame(
         frameHex: String,
         promise: Promise
     ) {
+
         try {
 
             val frame =
@@ -386,6 +475,7 @@ class AlxBleProtocolModule(
                 )
 
             if (frame.isEmpty()) {
+
                 throw IllegalArgumentException(
                     "Frame cannot be empty"
                 )
@@ -394,52 +484,68 @@ class AlxBleProtocolModule(
             if (
                 (frame[0].toInt() and 0xFF) != SOF
             ) {
+
                 throw IllegalArgumentException(
-                    "Invalid ALX frame: first byte must be 0xA5"
+                    "Frame must start with 0xA5"
                 )
             }
 
-            logFrame(
-                "TX RAW",
-                frame
-            )
+            val started =
+                AlxBleTransportModule.sendBytes(
+                    frame
+                )
 
-            sendFrame(
-                frame,
-                promise
-            )
+            if (!started) {
+
+                promise.reject(
+                    "ALX_RAW_FRAME_SEND_FAILED",
+                    "BLE transport rejected frame"
+                )
+
+                return
+            }
+
+            promise.resolve(true)
 
         } catch (e: Exception) {
-
-            Log.e(
-                TAG,
-                "Failed to send raw frame",
-                e
-            )
 
             promise.reject(
                 "ALX_RAW_FRAME_ERROR",
                 e.message
-                    ?: "Failed to send raw ALX frame",
+                    ?: "Failed to send raw frame",
                 e
             )
         }
     }
 
     // =========================================================================
-    // TRANSPORT
+    // SEND PROTOCOL COMMAND
     // =========================================================================
 
-    private fun sendFrame(
+    private fun sendProtocolCommand(
+        command: Int,
         frame: ByteArray,
         promise: Promise
     ) {
 
-        if (frame.isEmpty()) {
+        if (pendingCommandPromise != null) {
 
             promise.reject(
-                "ALX_PROTOCOL_EMPTY_FRAME",
-                "Cannot send an empty ALX frame"
+                "ALX_PROTOCOL_BUSY",
+                "Another ALX command is waiting for a response"
+            )
+
+            return
+        }
+
+        /*
+         * Also prevent overlapping automatic/native commands.
+         */
+        if (pendingCommand != null) {
+
+            promise.reject(
+                "ALX_PROTOCOL_BUSY",
+                "Another ALX command is already pending"
             )
 
             return
@@ -452,12 +558,6 @@ class AlxBleProtocolModule(
 
         if (!started) {
 
-            Log.e(
-                TAG,
-                "BLE transport rejected protocol frame: " +
-                    bytesToHex(frame)
-            )
-
             promise.reject(
                 "ALX_PROTOCOL_SEND_FAILED",
                 "BLE transport could not start the GATT write"
@@ -466,44 +566,93 @@ class AlxBleProtocolModule(
             return
         }
 
+        pendingCommand =
+            command
+
+        pendingCommandPromise =
+            promise
+
+        startResponseTimeout()
+
         Log.d(
             TAG,
-            "BLE write accepted: " +
-                "${frame.size} bytes"
+            "Command sent: ${commandName(command)} ${bytesToHex(frame)}"
         )
+    }
 
-        /*
-         * Same semantic as the current transport:
-         *
-         * true means Android accepted the GATT write.
-         *
-         * It does NOT mean that the ALX device replied.
-         */
-        promise.resolve(true)
+    // =========================================================================
+    // RESPONSE TIMEOUT
+    // =========================================================================
+
+    private fun startResponseTimeout() {
+
+        responseTimeoutRunnable?.let {
+            handler.removeCallbacks(it)
+        }
+
+        val runnable =
+            Runnable {
+
+                val command =
+                    pendingCommand
+
+                val promise =
+                    pendingCommandPromise
+
+                pendingCommand = null
+                pendingCommandPromise = null
+                responseTimeoutRunnable = null
+
+                Log.d(
+                    TAG,
+                    "Response timeout: ${
+                        if (command != null) {
+                            commandName(command)
+                        } else {
+                            "none"
+                        }
+                    }"
+                )
+
+                if (promise != null) {
+
+                    promise.reject(
+                        "ALX_PROTOCOL_TIMEOUT",
+                        "Timeout waiting for response" +
+                            if (command != null) {
+                                ": ${commandName(command)}"
+                            } else {
+                                ""
+                            }
+                    )
+                }
+            }
+
+        responseTimeoutRunnable =
+            runnable
+
+        handler.postDelayed(
+            runnable,
+            RESPONSE_TIMEOUT_MS
+        )
+    }
+
+    private fun cancelResponseTimeout() {
+
+        responseTimeoutRunnable?.let {
+
+            handler.removeCallbacks(
+                it
+            )
+        }
+
+        responseTimeoutRunnable = null
     }
 
     // =========================================================================
     // FRAME CONSTRUCTION
     // =========================================================================
 
-    /**
-     * Build the exact Windows command body.
-     *
-     * Windows defines:
-     *
-     * cmd_sts  = A5 00 01 00 00 00 00
-     * cmd_conn = A5 00 02 00 00 00 00
-     *
-     * Therefore a no-payload command is NOT:
-     *
-     * A5 DIR CMD CRC
-     *
-     * It is:
-     *
-     * A5 DIR CMD 00 00 00 00 CRC
-     *
-     * The four zero bytes are part of the command body.
-     */
     private fun buildCommandFrame(
         direction: Int,
         command: Int
@@ -535,11 +684,6 @@ class AlxBleProtocolModule(
         )
     }
 
-    /**
-     * Generic frame builder.
-     *
-     * This is kept for commands that genuinely use a variable payload.
-     */
     private fun buildFrame(
         direction: Int,
         command: Int,
@@ -571,8 +715,8 @@ class AlxBleProtocolModule(
             command.toByte()
 
         payload.copyInto(
-            destination = body,
-            destinationOffset = 3
+            body,
+            3
         )
 
         return appendCrc(
@@ -580,29 +724,10 @@ class AlxBleProtocolModule(
         )
     }
 
-    /**
-     * Exact TX behavior of the C# implementation.
-     *
-     * C#:
-     *
-     * byte[] intBytes = BitConverter.GetBytes(crc);
-     *
-     * if (BitConverter.IsLittleEndian)
-     *     Array.Reverse(intBytes);
-     *
-     * result = intBytes;
-     *
-     * newArray[data_length]     = result[1];
-     * newArray[data_length + 1] = result[0];
-     *
-     * Since result becomes:
-     *
-     * [CRC_HIGH, CRC_LOW]
-     *
-     * the transmitted order is:
-     *
-     * [CRC_LOW, CRC_HIGH]
-     */
+    // =========================================================================
+    // CRC
+    // =========================================================================
+
     private fun appendCrc(
         body: ByteArray
     ): ByteArray {
@@ -611,12 +736,6 @@ class AlxBleProtocolModule(
             calculateCrc(
                 body
             )
-
-        val crcHigh =
-            (crc shr 8) and 0xFF
-
-        val crcLow =
-            crc and 0xFF
 
         val frame =
             ByteArray(
@@ -628,54 +747,15 @@ class AlxBleProtocolModule(
             0
         )
 
-        // IMPORTANT:
-        // Windows sends LOW byte first.
         frame[body.size] =
-            crcLow.toByte()
+            (crc and 0xFF).toByte()
 
         frame[body.size + 1] =
-            crcHigh.toByte()
-
-        Log.d(
-            TAG,
-            "CRC: body=${bytesToHex(body)} " +
-                "crc=0x" +
-                crc
-                    .toString(16)
-                    .uppercase()
-                    .padStart(4, '0') +
-                " wire=${
-                    bytesToHex(
-                        byteArrayOf(
-                            crcLow.toByte(),
-                            crcHigh.toByte()
-                        )
-                    )
-                }"
-        )
+            ((crc shr 8) and 0xFF).toByte()
 
         return frame
     }
 
-    // =========================================================================
-    // CRC16
-    // =========================================================================
-
-    /**
-     * EXACT algorithm used by the C# tester.
-     *
-     * Despite the C# class being called Crc16Kermit,
-     * this is:
-     *
-     * initial = 0xFFFF
-     * polynomial = 0xA001
-     *
-     * and is calculated LSB-first.
-     *
-     * This method returns the numeric CRC value.
-     *
-     * It does NOT reverse the bytes.
-     */
     private fun calculateCrc(
         data: ByteArray
     ): Int {
@@ -683,11 +763,11 @@ class AlxBleProtocolModule(
         var crc =
             0xFFFF
 
-        for (value in data) {
+        for (byte in data) {
 
             crc =
                 crc xor (
-                    value.toInt() and 0xFF
+                    byte.toInt() and 0xFF
                 )
 
             repeat(8) {
@@ -713,13 +793,10 @@ class AlxBleProtocolModule(
     }
 
     // =========================================================================
-    // RX
+    // BLE RX
     // =========================================================================
 
-    /**
-     * Called by AlxBleTransportModule whenever a BLE notification arrives.
-     */
-    fun handleReceivedBytes(
+    private fun handleReceivedBytes(
         source: String,
         data: ByteArray
     ) {
@@ -728,276 +805,328 @@ class AlxBleProtocolModule(
             return
         }
 
-        logFrame(
-            "RX $source",
-            data
+        synchronized(rxBuffer) {
+
+            for (byte in data) {
+
+                rxBuffer.add(
+                    byte
+                )
+            }
+        }
+
+        processRxBuffer(
+            source
         )
+    }
 
-        val parsed =
-            parseFrame(
+    // =========================================================================
+    // RX BUFFER
+    // =========================================================================
+
+    private fun processRxBuffer(
+        source: String
+    ) {
+
+        while (true) {
+
+            val frame =
+                synchronized(rxBuffer) {
+
+                    extractNextFrame()
+                }
+                    ?: return
+
+            handleFrame(
                 source,
-                data
-            )
-
-        if (parsed != null) {
-
-            sendEvent(
-                EVENT_FRAME_RECEIVED,
-                parsed
+                frame
             )
         }
     }
 
-    /**
-     * Parse one complete ALX frame.
-     *
-     * Windows validates CRC like this:
-     *
-     * verifica = _data[..^2]
-     * crc = Calculate(verifica, false)
-     *
-     * if (_data[_data.Length - 2] != crc[1])
-     *     error
-     *
-     * if (_data[_data.Length - 1] != crc[0])
-     *     error
-     *
-     * Therefore:
-     *
-     * received[-2] = CRC LOW
-     * received[-1] = CRC HIGH
-     */
-    private fun parseFrame(
-        source: String,
-        data: ByteArray
-    ): WritableMap? {
+    private fun extractNextFrame(): ByteArray? {
 
-        /*
-         * Minimum meaningful ALX frame:
-         *
-         * SOF
-         * DIR
-         * CMD
-         * CRC_LOW
-         * CRC_HIGH
-         *
-         * = 5 bytes
-         */
-        if (data.size < 5) {
+        if (rxBuffer.isEmpty()) {
+            return null
+        }
 
-            Log.w(
-                TAG,
-                "RX frame too short: ${data.size} bytes"
-            )
+        var sofIndex =
+            -1
+
+        for (i in rxBuffer.indices) {
+
+            if (
+                (rxBuffer[i].toInt() and 0xFF) ==
+                SOF
+            ) {
+
+                sofIndex = i
+                break
+            }
+        }
+
+        if (sofIndex < 0) {
+
+            rxBuffer.clear()
 
             return null
         }
 
-        val sof =
-            data[0].toInt() and 0xFF
+        if (sofIndex > 0) {
 
-        if (sof != SOF) {
+            repeat(sofIndex) {
+                rxBuffer.removeAt(0)
+            }
+        }
 
-            Log.w(
-                TAG,
-                "RX invalid SOF: 0x" +
-                    sof
-                        .toString(16)
-                        .uppercase()
-            )
+        if (
+            rxBuffer.size <
+            MIN_FRAME_LENGTH
+        ) {
 
             return null
+        }
+
+        for (
+            length in MIN_FRAME_LENGTH..rxBuffer.size
+        ) {
+
+            val candidate =
+                ByteArray(length)
+
+            for (i in 0 until length) {
+
+                candidate[i] =
+                    rxBuffer[i]
+            }
+
+            if (
+                isValidFrame(candidate)
+            ) {
+
+                repeat(length) {
+                    rxBuffer.removeAt(0)
+                }
+
+                return candidate
+            }
+        }
+
+        return null
+    }
+
+    // =========================================================================
+    // FRAME VALIDATION
+    // =========================================================================
+
+    private fun isValidFrame(
+        frame: ByteArray
+    ): Boolean {
+
+        if (
+            frame.size <
+            MIN_FRAME_LENGTH
+        ) {
+            return false
+        }
+
+        if (
+            (frame[0].toInt() and 0xFF) !=
+            SOF
+        ) {
+            return false
+        }
+
+        val calculated =
+            calculateCrc(
+                frame.copyOfRange(
+                    0,
+                    frame.size - 2
+                )
+            )
+
+        val receivedLow =
+            frame[
+                frame.size - 2
+            ].toInt() and 0xFF
+
+        val receivedHigh =
+            frame[
+                frame.size - 1
+            ].toInt() and 0xFF
+
+        return (
+            receivedLow ==
+                (calculated and 0xFF)
+        ) && (
+            receivedHigh ==
+                ((calculated shr 8) and 0xFF)
+        )
+    }
+
+    // =========================================================================
+    // FRAME HANDLER
+    // =========================================================================
+
+    private fun handleFrame(
+        source: String,
+        frame: ByteArray
+    ) {
+
+        if (
+            frame.size <
+            MIN_FRAME_LENGTH
+        ) {
+            return
         }
 
         val direction =
-            data[1].toInt() and 0xFF
+            frame[1].toInt() and 0xFF
 
         val command =
-            data[2].toInt() and 0xFF
-
-        /*
-         * Everything between command and CRC is payload.
-         */
-        val payloadLength =
-            data.size - 5
+            frame[2].toInt() and 0xFF
 
         val payload =
-            if (payloadLength > 0) {
+            if (frame.size > 5) {
 
-                data.copyOfRange(
+                frame.copyOfRange(
                     3,
-                    data.size - 2
+                    frame.size - 2
                 )
 
             } else {
 
-                byteArrayOf()
+                ByteArray(0)
             }
-
-        /*
-         * Exact Windows wire order:
-         *
-         * [... CRC_LOW CRC_HIGH]
-         */
-        val receivedCrcLow =
-            data[data.size - 2]
-                .toInt() and 0xFF
-
-        val receivedCrcHigh =
-            data[data.size - 1]
-                .toInt() and 0xFF
-
-        val receivedCrc =
-            (
-                (receivedCrcHigh shl 8)
-                    or receivedCrcLow
-            ) and 0xFFFF
-
-        val frameWithoutCrc =
-            data.copyOfRange(
-                0,
-                data.size - 2
-            )
 
         val calculatedCrc =
             calculateCrc(
-                frameWithoutCrc
+                frame.copyOfRange(
+                    0,
+                    frame.size - 2
+                )
             )
 
-        val calculatedCrcLow =
-            calculatedCrc and 0xFF
+        val receivedCrc =
+            (
+                (
+                    frame[
+                        frame.size - 1
+                    ].toInt() and 0xFF
+                ) shl 8
+            ) or
+                (
+                    frame[
+                        frame.size - 2
+                    ].toInt() and 0xFF
+                )
 
-        val calculatedCrcHigh =
-            (calculatedCrc shr 8) and 0xFF
+        val event =
+            Arguments
+                .createMap()
+                .apply {
 
-        /*
-         * EXACT C# comparison:
-         *
-         * data[-2] == crc[1]
-         * data[-1] == crc[0]
-         *
-         * where C# crc[] is the reversed-byte result.
-         *
-         * Therefore wire:
-         *
-         * LOW HIGH
-         */
-        val crcValid =
-            receivedCrcLow ==
-                calculatedCrcLow &&
-            receivedCrcHigh ==
-                calculatedCrcHigh
+                    putString(
+                        "source",
+                        source
+                    )
+
+                    putString(
+                        "hex",
+                        bytesToHex(frame)
+                    )
+
+                    putInt(
+                        "length",
+                        frame.size
+                    )
+
+                    putInt(
+                        "direction",
+                        direction
+                    )
+
+                    putInt(
+                        "command",
+                        command
+                    )
+
+                    putString(
+                        "commandName",
+                        commandName(command)
+                    )
+
+                    putString(
+                        "payload",
+                        bytesToHex(payload)
+                    )
+
+                    putInt(
+                        "payloadLength",
+                        payload.size
+                    )
+
+                    putInt(
+                        "receivedCrc",
+                        receivedCrc
+                    )
+
+                    putInt(
+                        "calculatedCrc",
+                        calculatedCrc
+                    )
+
+                    putBoolean(
+                        "crcValid",
+                        true
+                    )
+                }
 
         Log.d(
             TAG,
-            "RX ${commandName(command)} " +
-                "dir=0x" +
-                direction
-                    .toString(16)
-                    .uppercase()
-                    .padStart(2, '0') +
-                " payload=${payload.size}B " +
-                "CRC=" +
-                if (crcValid) {
-                    "OK"
-                } else {
-                    "INVALID"
-                } +
-                " received=0x" +
-                receivedCrc
-                    .toString(16)
-                    .uppercase()
-                    .padStart(4, '0') +
-                " calculated=0x" +
-                calculatedCrc
-                    .toString(16)
-                    .uppercase()
-                    .padStart(4, '0')
+            "RX ${bytesToHex(frame)}"
         )
 
-        if (!crcValid) {
+        sendEvent(
+            EVENT_FRAME_RECEIVED,
+            event
+        )
 
-            Log.w(
-                TAG,
-                "CRC mismatch: " +
-                    "RX=${bytesToHex(data)}"
-            )
-        }
+        val waitingCommand =
+            pendingCommand
 
-        return Arguments
-            .createMap()
-            .apply {
+        val promise =
+            pendingCommandPromise
 
-                putString(
-                    "source",
-                    source
-                )
+        /*
+         * Device response must be:
+         *
+         * DIR = 0x01
+         * CMD = requested command
+         */
+        if (
+            waitingCommand != null &&
+            command == waitingCommand &&
+            direction == DIR_SLAVE
+        ) {
 
-                putInt(
-                    "length",
-                    data.size
-                )
+            pendingCommand = null
+            pendingCommandPromise = null
 
-                putInt(
-                    "direction",
-                    direction
-                )
+            cancelResponseTimeout()
 
-                putInt(
-                    "command",
-                    command
-                )
+            if (promise != null) {
 
-                putString(
-                    "commandName",
-                    commandName(command)
-                )
-
-                putString(
-                    "payload",
-                    bytesToHex(payload)
-                )
-
-                putString(
-                    "hex",
-                    bytesToHex(data)
-                )
-
-                putInt(
-                    "receivedCrc",
-                    receivedCrc
-                )
-
-                putInt(
-                    "calculatedCrc",
-                    calculatedCrc
-                )
-
-                putInt(
-                    "receivedCrcLow",
-                    receivedCrcLow
-                )
-
-                putInt(
-                    "receivedCrcHigh",
-                    receivedCrcHigh
-                )
-
-                putInt(
-                    "calculatedCrcLow",
-                    calculatedCrcLow
-                )
-
-                putInt(
-                    "calculatedCrcHigh",
-                    calculatedCrcHigh
-                )
-
-                putBoolean(
-                    "crcValid",
-                    crcValid
+                promise.resolve(
+                    event
                 )
             }
+
+            Log.d(
+                TAG,
+                "Response matched: ${commandName(command)}"
+            )
+        }
     }
 
     // =========================================================================
@@ -1060,8 +1189,83 @@ class AlxBleProtocolModule(
                     command
                         .toString(16)
                         .uppercase()
-                        .padStart(2, '0')
+                        .padStart(
+                            2,
+                            '0'
+                        )
         }
+    }
+
+    // =========================================================================
+    // STATE
+    // =========================================================================
+
+    @ReactMethod
+    fun getProtocolState(
+        promise: Promise
+    ) {
+
+        promise.resolve(
+            Arguments
+                .createMap()
+                .apply {
+
+                    putString(
+                        "module",
+                        MODULE_NAME
+                    )
+
+                    putInt(
+                        "sof",
+                        SOF
+                    )
+
+                    putInt(
+                        "masterDirection",
+                        DIR_MASTER
+                    )
+
+                    putInt(
+                        "slaveDirection",
+                        DIR_SLAVE
+                    )
+
+                    putInt(
+                        "statusCommand",
+                        CMD_STATUS
+                    )
+
+                    putInt(
+                        "connectionCommand",
+                        CMD_CONN
+                    )
+
+                    putBoolean(
+                        "waitingForResponse",
+                        pendingCommand != null
+                    )
+
+                    putInt(
+                        "pendingCommand",
+                        pendingCommand ?: -1
+                    )
+
+                    putString(
+                        "crc",
+                        "init=0xFFFF polynomial=0xA001 wire=LOW,HIGH"
+                    )
+
+                    putString(
+                        "statusFrame",
+                        "A5 00 01 00 00 00 00 D3 CA"
+                    )
+
+                    putString(
+                        "connectionFrame",
+                        "A5 00 02 00 00 00 00 97 CA"
+                    )
+                }
+        )
     }
 
     // =========================================================================
@@ -1073,7 +1277,9 @@ class AlxBleProtocolModule(
         name: String
     ) {
 
-        if (value !in 0..0xFF) {
+        if (
+            value !in 0..0xFF
+        ) {
 
             throw IllegalArgumentException(
                 "$name must be between 0x00 and 0xFF"
@@ -1099,10 +1305,12 @@ class AlxBleProtocolModule(
                 )
 
         if (cleaned.isEmpty()) {
-            return byteArrayOf()
+            return ByteArray(0)
         }
 
-        if (cleaned.length % 2 != 0) {
+        if (
+            cleaned.length % 2 != 0
+        ) {
 
             throw IllegalArgumentException(
                 "Hex string must contain an even number of characters"
@@ -1113,30 +1321,13 @@ class AlxBleProtocolModule(
             cleaned.length / 2
         ) { index ->
 
-            val high =
-                Character.digit(
-                    cleaned[index * 2],
-                    16
-                )
-
-            val low =
-                Character.digit(
-                    cleaned[index * 2 + 1],
-                    16
-                )
-
-            if (
-                high < 0 ||
-                low < 0
-            ) {
-
-                throw IllegalArgumentException(
-                    "Invalid hexadecimal value"
-                )
-            }
-
             (
-                (high shl 4) or low
+                cleaned
+                    .substring(
+                        index * 2,
+                        index * 2 + 2
+                    )
+                    .toInt(16)
             ).toByte()
         }
     }
@@ -1153,53 +1344,38 @@ class AlxBleProtocolModule(
         }
     }
 
-    private fun logFrame(
-        prefix: String,
-        data: ByteArray
-    ) {
-
-        val formatted =
-            data.joinToString(" ") {
-
-                "%02X".format(
-                    it.toInt() and 0xFF
-                )
-            }
-
-        Log.d(
-            TAG,
-            "$prefix: $formatted"
-        )
-    }
-
     private fun sendEvent(
         eventName: String,
         params: WritableMap
     ) {
 
-        if (
-            !reactApplicationContext
-                .hasActiveCatalystInstance()
-        ) {
+        try {
 
-            Log.w(
+            if (
+                !reactApplicationContext
+                    .hasActiveCatalystInstance()
+            ) {
+                return
+            }
+
+            reactApplicationContext
+                .getJSModule(
+                    DeviceEventManagerModule
+                        .RCTDeviceEventEmitter::class.java
+                )
+                .emit(
+                    eventName,
+                    params
+                )
+
+        } catch (e: Exception) {
+
+            Log.e(
                 TAG,
-                "React context inactive; " +
-                    "dropping event=$eventName"
+                "Failed to emit $eventName",
+                e
             )
-
-            return
         }
-
-        reactApplicationContext
-            .getJSModule(
-                DeviceEventManagerModule
-                    .RCTDeviceEventEmitter::class.java
-            )
-            .emit(
-                eventName,
-                params
-            )
     }
 
     // =========================================================================
@@ -1210,80 +1386,12 @@ class AlxBleProtocolModule(
     fun addListener(
         eventName: String
     ) {
-        // Required by NativeEventEmitter.
     }
 
     @ReactMethod
     fun removeListeners(
         count: Int
     ) {
-        // Required by NativeEventEmitter.
-    }
-
-    // =========================================================================
-    // DEBUG STATE
-    // =========================================================================
-
-    @ReactMethod
-    fun getProtocolState(
-        promise: Promise
-    ) {
-
-        try {
-
-            val state =
-                Arguments
-                    .createMap()
-                    .apply {
-
-                        putString(
-                            "module",
-                            MODULE_NAME
-                        )
-
-                        putInt(
-                            "sof",
-                            SOF
-                        )
-
-                        putInt(
-                            "masterDirection",
-                            DIR_MASTER
-                        )
-
-                        putInt(
-                            "slaveDirection",
-                            DIR_SLAVE
-                        )
-
-                        putInt(
-                            "statusCommand",
-                            CMD_STATUS
-                        )
-
-                        putInt(
-                            "connectionCommand",
-                            CMD_CONN
-                        )
-
-                        putString(
-                            "crc",
-                            "init=0xFFFF polynomial=0xA001 wire=LOW,HIGH"
-                        )
-                    }
-
-            promise.resolve(
-                state
-            )
-
-        } catch (e: Exception) {
-
-            promise.reject(
-                "ALX_PROTOCOL_STATE_ERROR",
-                e.message,
-                e
-            )
-        }
     }
 
     // =========================================================================
@@ -1292,10 +1400,14 @@ class AlxBleProtocolModule(
 
     override fun invalidate() {
 
-        Log.d(
-            TAG,
-            "Invalidating AlxBleProtocol"
-        )
+        cancelResponseTimeout()
+
+        pendingCommandPromise = null
+        pendingCommand = null
+
+        synchronized(rxBuffer) {
+            rxBuffer.clear()
+        }
 
         if (instance === this) {
             instance = null

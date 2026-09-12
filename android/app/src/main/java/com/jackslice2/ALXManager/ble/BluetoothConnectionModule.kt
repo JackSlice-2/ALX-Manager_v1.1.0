@@ -39,8 +39,6 @@ class BluetoothConnectionModule(
         private const val EVENT_DISCONNECTED =
             "BluetoothDisconnected"
 
-        // Kept for JS compatibility.
-        // Pairing is intentionally NOT used.
         private const val EVENT_PAIRING_REQUEST =
             "BluetoothPairingRequest"
 
@@ -129,14 +127,21 @@ class BluetoothConnectionModule(
 
     private var pendingDevice: BluetoothDevice? = null
 
-    private var connectionInProgress =
-        false
+    private var connectionInProgress = false
 
-    private var servicesDiscovered =
-        false
+    private var servicesDiscovered = false
 
-    private var rxNotificationConfigured =
-        false
+    private var rxNotificationConfigured = false
+
+    // =========================================================================
+    // DISCOVERED ALX CHARACTERISTICS
+    // =========================================================================
+
+    private var txCharacteristic: BluetoothGattCharacteristic? = null
+
+    private var rxCharacteristic: BluetoothGattCharacteristic? = null
+
+    private var rx2Characteristic: BluetoothGattCharacteristic? = null
 
     // =========================================================================
     // RN MODULE
@@ -213,29 +218,6 @@ class BluetoothConnectionModule(
 
     // =========================================================================
     // CONNECT
-    //
-    // IMPORTANT:
-    //
-    // This module deliberately DOES NOT enable RX notifications automatically.
-    //
-    // Sequence is now:
-    //
-    //   connectGatt()
-    //       ↓
-    //   connected
-    //       ↓
-    //   discoverServices()
-    //       ↓
-    //   ALX GATT available
-    //       ↓
-    //   connection promise SUCCESS
-    //       ↓
-    //   JS may explicitly call enableRxNotifications()
-    //
-    // This isolates the CCCD operation from the initial GATT connection.
-    //
-    // No pairing.
-    //
     // =========================================================================
 
     @SuppressLint("MissingPermission")
@@ -296,20 +278,16 @@ class BluetoothConnectionModule(
                 return
             }
 
-        pendingPromise =
-            promise
+        pendingPromise = promise
+        pendingDevice = device
 
-        pendingDevice =
-            device
+        connectionInProgress = true
+        servicesDiscovered = false
+        rxNotificationConfigured = false
 
-        connectionInProgress =
-            true
-
-        servicesDiscovered =
-            false
-
-        rxNotificationConfigured =
-            false
+        txCharacteristic = null
+        rxCharacteristic = null
+        rx2Characteristic = null
 
         Log.d(
             TAG,
@@ -408,17 +386,22 @@ class BluetoothConnectionModule(
                 }
             }
 
-            activeGatt =
-                null
+            // -----------------------------------------------------------------
+            // CLEAR OTHER BLE MODULES
+            // -----------------------------------------------------------------
 
-            activeDevice =
-                device
+            AlxBleTransportModule.clearGatt()
+            AlxBleGattModule.clearGatt()
 
-            servicesDiscovered =
-                false
+            activeGatt = null
+            activeDevice = device
 
-            rxNotificationConfigured =
-                false
+            servicesDiscovered = false
+            rxNotificationConfigured = false
+
+            txCharacteristic = null
+            rxCharacteristic = null
+            rx2Characteristic = null
 
             Log.d(
                 TAG,
@@ -478,8 +461,7 @@ class BluetoothConnectionModule(
                     )
                 }
 
-            activeGatt =
-                gatt
+            activeGatt = gatt
 
             if (gatt == null) {
 
@@ -588,30 +570,23 @@ class BluetoothConnectionModule(
                             "================================================"
                         )
 
-                        activeGatt =
-                            gatt
-
-                        activeDevice =
-                            gatt.device
-
-                        servicesDiscovered =
-                            false
-
-                        rxNotificationConfigured =
-                            false
-
-                        // Give GATT ownership to the GATT/Transport layer,
-                        // but DO NOT call onServicesDiscovered() here.
+                        // -----------------------------------------------------
+                        // Store the exact GATT instance.
                         //
-                        // AlxBleGattModule.onServicesDiscovered() currently
-                        // starts RX CCCD configuration automatically.
+                        // Do NOT configure AlxBleGattModule yet.
                         //
-                        // We explicitly avoid that during this diagnostic
-                        // connection phase.
+                        // TX/RX/RX2 are only known after service discovery.
+                        // -----------------------------------------------------
 
-                        AlxBleGattModule.setGatt(
-                            gatt
-                        )
+                        activeGatt = gatt
+                        activeDevice = gatt.device
+
+                        servicesDiscovered = false
+                        rxNotificationConfigured = false
+
+                        txCharacteristic = null
+                        rxCharacteristic = null
+                        rx2Characteristic = null
 
                         emitSimpleEvent(
                             EVENT_CONNECTED
@@ -725,6 +700,10 @@ class BluetoothConnectionModule(
                             }
                         )
 
+                        // -----------------------------------------------------
+                        // CLEAR ALL BLE MODULE STATE
+                        // -----------------------------------------------------
+
                         AlxBleTransportModule.clearGatt()
                         AlxBleGattModule.clearGatt()
 
@@ -747,22 +726,19 @@ class BluetoothConnectionModule(
                         }
 
                         activeDevice = null
+
+                        txCharacteristic = null
+                        rxCharacteristic = null
+                        rx2Characteristic = null
+
+                        servicesDiscovered = false
+                        rxNotificationConfigured = false
                     }
                 }
             }
 
             // =================================================================
             // SERVICES DISCOVERED
-            //
-            // IMPORTANT:
-            //
-            // We intentionally DO NOT call:
-            //
-            //     AlxBleGattModule.onServicesDiscovered(gatt)
-            //
-            // because that currently starts RX CCCD configuration.
-            //
-            // This callback is now purely a GATT discovery checkpoint.
             // =================================================================
 
             override fun onServicesDiscovered(
@@ -808,11 +784,17 @@ class BluetoothConnectionModule(
                     return
                 }
 
-                servicesDiscovered =
-                    true
+                // -------------------------------------------------------------
+                // Make sure this exact GATT is the active one.
+                // -------------------------------------------------------------
+
+                activeGatt = gatt
+                activeDevice = gatt.device
+
+                servicesDiscovered = true
 
                 // -------------------------------------------------------------
-                // Dump the discovered ALX service/characteristics.
+                // FIND ALX SERVICE
                 // -------------------------------------------------------------
 
                 val alxService =
@@ -845,14 +827,17 @@ class BluetoothConnectionModule(
                     "ALX service found: ${alxService.uuid}"
                 )
 
-                var txFound =
-                    false
+                // -------------------------------------------------------------
+                // RESET CHARACTERISTICS
+                // -------------------------------------------------------------
 
-                var rxFound =
-                    false
+                txCharacteristic = null
+                rxCharacteristic = null
+                rx2Characteristic = null
 
-                var rx2Found =
-                    false
+                // -------------------------------------------------------------
+                // FIND TX / RX / RX2
+                // -------------------------------------------------------------
 
                 for (characteristic in alxService.characteristics) {
 
@@ -919,6 +904,10 @@ class BluetoothConnectionModule(
                         "Characteristic: $uuid properties=$propertyText"
                     )
 
+                    // ---------------------------------------------------------
+                    // TX
+                    // ---------------------------------------------------------
+
                     if (
                         uuid.equals(
                             ALX_TX_UUID,
@@ -926,13 +915,18 @@ class BluetoothConnectionModule(
                         )
                     ) {
 
-                        txFound = true
+                        txCharacteristic =
+                            characteristic
 
                         Log.d(
                             TAG,
                             "ALX TX found: ${characteristic.uuid}"
                         )
                     }
+
+                    // ---------------------------------------------------------
+                    // RX
+                    // ---------------------------------------------------------
 
                     if (
                         uuid.equals(
@@ -941,7 +935,8 @@ class BluetoothConnectionModule(
                         )
                     ) {
 
-                        rxFound = true
+                        rxCharacteristic =
+                            characteristic
 
                         Log.d(
                             TAG,
@@ -975,6 +970,10 @@ class BluetoothConnectionModule(
                         }
                     }
 
+                    // ---------------------------------------------------------
+                    // RX2
+                    // ---------------------------------------------------------
+
                     if (
                         uuid.equals(
                             ALX_RX2_UUID,
@@ -982,7 +981,8 @@ class BluetoothConnectionModule(
                         )
                     ) {
 
-                        rx2Found = true
+                        rx2Characteristic =
+                            characteristic
 
                         Log.d(
                             TAG,
@@ -1017,6 +1017,19 @@ class BluetoothConnectionModule(
                     }
                 }
 
+                // -------------------------------------------------------------
+                // CAPTURE DISCOVERED REFERENCES
+                // -------------------------------------------------------------
+
+                val tx =
+                    txCharacteristic
+
+                val rx =
+                    rxCharacteristic
+
+                val rx2 =
+                    rx2Characteristic
+
                 Log.d(
                     TAG,
                     "================================================"
@@ -1029,17 +1042,17 @@ class BluetoothConnectionModule(
 
                 Log.d(
                     TAG,
-                    "TX found : $txFound"
+                    "TX found : ${tx != null}"
                 )
 
                 Log.d(
                     TAG,
-                    "RX found : $rxFound"
+                    "RX found : ${rx != null}"
                 )
 
                 Log.d(
                     TAG,
-                    "RX2 found: $rx2Found"
+                    "RX2 found: ${rx2 != null}"
                 )
 
                 Log.d(
@@ -1047,7 +1060,11 @@ class BluetoothConnectionModule(
                     "================================================"
                 )
 
-                if (!txFound || !rxFound) {
+                // -------------------------------------------------------------
+                // TX + RX ARE REQUIRED
+                // -------------------------------------------------------------
+
+                if (tx == null || rx == null) {
 
                     failPendingConnection(
                         ERROR_CONNECTION_FAILED,
@@ -1058,20 +1075,167 @@ class BluetoothConnectionModule(
                 }
 
                 // -------------------------------------------------------------
+                // SYNCHRONIZE GATT MODULE
+                //
+                // Actual signature:
+                //
+                //     AlxBleGattModule.setGatt(
+                //         gatt
+                //     )
+                //
+                // The GATT module stores the GATT instance.
+                // -------------------------------------------------------------
+
+                AlxBleGattModule.setGatt(
+                    gatt
+                )
+
+                Log.d(
+                    TAG,
+                    "AlxBleGattModule synchronized"
+                )
+
+                Log.d(
+                    TAG,
+                    "  GATT = ${gatt.device.address}"
+                )
+
+                Log.d(
+                    TAG,
+                    "  TX   = ${tx.uuid}"
+                )
+
+                Log.d(
+                    TAG,
+                    "  RX   = ${rx.uuid}"
+                )
+
+                Log.d(
+                    TAG,
+                    "  RX2  = ${rx2?.uuid ?: "<not found>"}"
+                )
+
+                // -------------------------------------------------------------
+                // SYNCHRONIZE TRANSPORT MODULE
+                //
+                // Actual signature:
+                //
+                //     AlxBleTransportModule.setGatt(
+                //         gatt,
+                //         tx,
+                //         rx,
+                //         rx2
+                //     )
+                //
+                // This is where the transport gets the characteristics it
+                // needs to perform writes and receive notifications.
+                // -------------------------------------------------------------
+
+                AlxBleTransportModule.setGatt(
+                    gatt,
+                    tx,
+                    rx,
+                    rx2
+                )
+
+                Log.d(
+                    TAG,
+                    "AlxBleTransportModule synchronized"
+                )
+
+                Log.d(
+                    TAG,
+                    "  GATT = ${gatt.device.address}"
+                )
+
+                Log.d(
+                    TAG,
+                    "  TX   = ${tx.uuid}"
+                )
+
+                Log.d(
+                    TAG,
+                    "  RX   = ${rx.uuid}"
+                )
+
+                Log.d(
+                    TAG,
+                    "  RX2  = ${rx2?.uuid ?: "<not found>"}"
+                )
+
+                // -------------------------------------------------------------
+                // EVERYTHING IS NOW READY.
+                //
                 // IMPORTANT:
                 //
-                // Connection is considered GATT-ready here.
+                // onGattReady() MUST happen AFTER both modules have their
+                // correct GATT state.
                 //
-                // RX notifications are NOT enabled automatically.
+                // This prevents the previous:
                 //
-                // The JS "ENABLE RX NOTIFICATIONS" button must explicitly
-                // request the CCCD operation.
+                //     TX REJECTED: activeGatt == null
+                //
+                // problem.
                 // -------------------------------------------------------------
+
+                AlxBleProtocolModule.onGattReady()
+
+                Log.d(
+                    TAG,
+                    "================================================"
+                )
 
                 Log.d(
                     TAG,
                     "GATT TRANSPORT AVAILABLE"
                 )
+
+                Log.d(
+                    TAG,
+                    "GATT      : ${gatt.device.address}"
+                )
+
+                Log.d(
+                    TAG,
+                    "TX        : ${tx.uuid}"
+                )
+
+                Log.d(
+                    TAG,
+                    "RX        : ${rx.uuid}"
+                )
+
+                Log.d(
+                    TAG,
+                    "RX2       : ${rx2?.uuid ?: "<not found>"}"
+                )
+
+                Log.d(
+                    TAG,
+                    "Gatt      : READY"
+                )
+
+                Log.d(
+                    TAG,
+                    "Transport : READY"
+                )
+
+                Log.d(
+                    TAG,
+                    "Protocol  : READY"
+                )
+
+                Log.d(
+                    TAG,
+                    "================================================"
+                )
+
+                // -------------------------------------------------------------
+                // Notifications remain disabled.
+                //
+                // CCCD configuration is performed only when explicitly
+                // requested by the application/transport layer.
+                // -------------------------------------------------------------
 
                 Log.d(
                     TAG,
@@ -1082,6 +1246,10 @@ class BluetoothConnectionModule(
                     TAG,
                     "CCCD write: WAITING FOR EXPLICIT REQUEST"
                 )
+
+                // -------------------------------------------------------------
+                // Resolve exactly once.
+                // -------------------------------------------------------------
 
                 resolvePendingConnection()
             }
@@ -1149,12 +1317,6 @@ class BluetoothConnectionModule(
 
             // =================================================================
             // DESCRIPTOR WRITE
-            //
-            // This callback now belongs to the explicit notification test.
-            //
-            // Transport handles the actual pending notification promise.
-            // BluetoothConnection only observes the RX CCCD result for
-            // diagnostics/state reporting.
             // =================================================================
 
             override fun onDescriptorWrite(
@@ -1177,11 +1339,13 @@ class BluetoothConnectionModule(
                         .lowercase()
 
                 val valueHex =
-                    descriptor.value?.joinToString("") {
-                        "%02X".format(
-                            it.toInt() and 0xFF
-                        )
-                    } ?: "<null>"
+                    descriptor.value
+                        ?.joinToString("") {
+                            "%02X".format(
+                                it.toInt() and 0xFF
+                            )
+                        }
+                        ?: "<null>"
 
                 val isAlxRx =
                     characteristicUuid ==
@@ -1259,7 +1423,6 @@ class BluetoothConnectionModule(
                     "================================================"
                 )
 
-                // Always forward to Transport.
                 AlxBleTransportModule
                     .onDescriptorWrite(
                         gatt,
@@ -1408,14 +1571,9 @@ class BluetoothConnectionModule(
         val promise =
             pendingPromise
 
-        pendingPromise =
-            null
-
-        pendingDevice =
-            null
-
-        connectionInProgress =
-            false
+        pendingPromise = null
+        pendingDevice = null
+        connectionInProgress = false
 
         if (promise == null) {
 
@@ -1576,14 +1734,9 @@ class BluetoothConnectionModule(
         val promise =
             pendingPromise
 
-        pendingPromise =
-            null
-
-        pendingDevice =
-            null
-
-        connectionInProgress =
-            false
+        pendingPromise = null
+        pendingDevice = null
+        connectionInProgress = false
 
         promise?.reject(
             code,
@@ -1614,17 +1767,15 @@ class BluetoothConnectionModule(
             AlxBleTransportModule.clearGatt()
             AlxBleGattModule.clearGatt()
 
-            activeGatt =
-                null
+            activeGatt = null
+            activeDevice = null
 
-            activeDevice =
-                null
+            servicesDiscovered = false
+            rxNotificationConfigured = false
 
-            servicesDiscovered =
-                false
-
-            rxNotificationConfigured =
-                false
+            txCharacteristic = null
+            rxCharacteristic = null
+            rx2Characteristic = null
 
             if (gatt != null) {
 
@@ -1639,14 +1790,10 @@ class BluetoothConnectionModule(
                 }
             }
 
-            connectionInProgress =
-                false
+            connectionInProgress = false
 
-            pendingPromise =
-                null
-
-            pendingDevice =
-                null
+            pendingPromise = null
+            pendingDevice = null
 
             emitSimpleEvent(
                 EVENT_DISCONNECTED
@@ -1740,6 +1887,7 @@ class BluetoothConnectionModule(
                         bondStateName(
                             device.bondState
                         )
+
                     )
 
                 } else {
@@ -1803,26 +1951,19 @@ class BluetoothConnectionModule(
         } catch (_: Exception) {
         }
 
-        activeGatt =
-            null
+        activeGatt = null
+        activeDevice = null
 
-        activeDevice =
-            null
+        pendingPromise = null
+        pendingDevice = null
 
-        pendingPromise =
-            null
+        connectionInProgress = false
+        servicesDiscovered = false
+        rxNotificationConfigured = false
 
-        pendingDevice =
-            null
-
-        connectionInProgress =
-            false
-
-        servicesDiscovered =
-            false
-
-        rxNotificationConfigured =
-            false
+        txCharacteristic = null
+        rxCharacteristic = null
+        rx2Characteristic = null
 
         AlxBleTransportModule.clearGatt()
         AlxBleGattModule.clearGatt()
