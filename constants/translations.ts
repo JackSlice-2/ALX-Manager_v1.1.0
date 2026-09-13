@@ -136,17 +136,22 @@ export const translations = {
     text6: "Carregando Serial...",
     text7: "Carregando IOs...",
     text8: "Carregando Atualizações...",
-    text9: "Carregando Commandos..."
+    text9: "Carregando Commandos...",
+    text10: "Carregando Registro de Dados..."
     },
     SettingsOptions: {
       WiFi: "Configurar WiFI",
+      RTC: "Configurar RTC",
       Mobile: "Configurar Mobile",
       GPS: "Configurar GPS",
       MQTT: "Configurar MQTT",
       Drivers: "Configurar Drivers",
+      i2c: "Configurar Rede i2c",
       Serial: "Configurar Serial",
       IOs: "Configurar IOs",
       Updates: "Atualizações",
+      Register: "Registro de Dados",
+      General: "Configurações Gerais",
       Commands: "Forçar Comandos",
       Password: "Alterar Senha"
     },
@@ -242,6 +247,12 @@ export const translations = {
       text1: "Versão Disponível",
       text2: "Forçar Atualização",
       text3: "Horário de Verificação"
+    },
+    DataRegistrySettings: {
+      text0: "Tempo de estabilização para leitura [seg.]",
+      text1: "Periodicidade [seg.]",
+      text2: "Limite Inferior",
+      text3: "Limite Superior",
     },
     CommandsSettings: {
       text0: "Restaurar padrão de Fabrica",
@@ -543,17 +554,22 @@ export const translations = {
       text6: "Loading Serial...",
       text7: "Loading IOs...",
       text8: "Loading Updates...",
-      text9: "Loading Commands..."
+      text9: "Loading Commands...",
+      text10: "Loading Data Registry..."
     },
     SettingsOptions: {
       WiFi: "Configure WiFI",
+      RTC: "Configure RTC",
       Mobile: "Configure Mobile",
       GPS: "Configure GPS",
       MQTT: "Configure MQTT",
       Drivers: "Configure Drivers",
+      i2c: "Configure i2c Network",
       Serial: "Configure Serial",
       IOs: "Configure IOs",
       Updates: "Updates",
+      Register: "Data Registry",
+      General: "General Settings",
       Commands: "Force Commands",
       Password: "Change Password"
     },
@@ -649,6 +665,12 @@ export const translations = {
       text1: "Available Version",
       text2: "Force Update",
       text3: "Verification Schedule"
+    },
+    DataRegistrySettings: {
+      text0: "Reading stabilization time [sec.]",
+      text1: "Interval [sec.]",
+      text2: "Lower Limit",
+      text3: "Upper Limit",
     },
     CommandsSettings: {
       text0: "Factory Reset",

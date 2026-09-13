@@ -59,6 +59,27 @@ export const useConfigOptions = () => {
   ];
 };
 
+export const useBluetoothConfigOptions = () => {
+  const t = useT();
+
+  return [
+    { label: t.SettingsOptions.RTC, image: require('../assets/images/Clock1.png') },
+
+    { label: t.SettingsOptions.Mobile, image: require('../assets/images/Simcard.png') },
+    { label: t.SettingsOptions.MQTT, image: require('../assets/images/Cloud.png') },
+    { label: t.SettingsOptions.Drivers, image: require('../assets/images/Devices.png') },
+    { label: t.SettingsOptions.i2c, image: require('../assets/images/wire.png') },
+
+    { label: t.SettingsOptions.Serial, image: require('../assets/images/Serial.png') },
+    { label: t.SettingsOptions.IOs, image: require('../assets/images/icons8-control-250.png') },
+    { label: t.SettingsOptions.Updates, image: require('../assets/images/Processor.png') },
+    { label: t.SettingsOptions.Register, image: require('../assets/images/server.png') },
+    { label: t.SettingsOptions.General, image: require('../assets/images/gears.png') },
+    { label: t.SettingsOptions.Commands, image: require('../assets/images/Command.png') },
+    { label: t.SettingsOptions.Password, image: require('../assets/images/key.png') },
+  ];
+};
+
 
 export const useInfoCards = () => {
 

@@ -1,19 +1,22 @@
 import { router, useGlobalSearchParams } from 'expo-router';
 import React, { useEffect, useState } from 'react';
 import { Image, StyleSheet, TouchableOpacity, View, } from 'react-native';
-import PageContainer from '../../../components/PageContainer';
-import RobotoText from '../../../components/RobotoText';
-import RenderModals from '../../../components/settings/RenderModels';
-import useAllSettingsData from '@/components/settings/useAllSettings';
+import PageContainer from '@/components/PageContainer';
+import RobotoText from '@/components/RobotoText';
+import RenderModals from '@/components/bluetooth/settings/RenderModels';
+import useAllSettingsData from '@/components/bluetooth/settings/useAllSettings';
 import { useT } from '@/hooks/useT';
-import { useConfigOptions } from '@/utils/constants';
+import { useBluetoothConfigOptions } from '@/utils/constants';
 
 export default function Settings() {
   const [selectedOption, setSelectedOption] = useState<string | null>(null);
   const { selectedOption: option }: any = useGlobalSearchParams();
 
   const {
-    wifi,
+    RTC,
+    RTCConfig,
+    RegisterData,
+    RegisterConfigData,
     mobile,
     mobileConfig,
     datalogger,
@@ -37,7 +40,8 @@ export default function Settings() {
   }, [option]);
 
   const optionReadyMap: Record<string, boolean> = {
-    [t.SettingsOptions.WiFi]: !!wifi.info,
+    [t.SettingsOptions.RTC]: !!RTC.info,
+    [t.SettingsOptions.Register]: !!RegisterData.info && !!RegisterConfigData.info,
     [t.SettingsOptions.Mobile]: !!mobile.info && !!mobileConfig.info,
     [t.SettingsOptions.GPS]: !!gps.info && !!datalogger.info,
     [t.SettingsOptions.MQTT]: !!mqtt.info && !!mqttConfig.info,
@@ -63,7 +67,7 @@ export default function Settings() {
       image={require('@/assets/images/Tools.png')}
     >
       <View style={styles.optionsContainer}>
-        {useConfigOptions().map(({ label, image }: any) => {
+        {useBluetoothConfigOptions().map(({ label, image }: any) => {
           const enabled = isOptionReady(label);
 
           return (
@@ -93,11 +97,14 @@ export default function Settings() {
         selectedOption={selectedOption}
         setSelectedOption={setSelectedOption}
 
-        wifi={wifi.info ?? undefined}
-        refreshWifi={wifi.refreshData}
+        RTC={RTC.info ?? undefined}
+        RTCConfig={RTCConfig.info ?? undefined}
 
         mobileData={mobile.info ?? undefined}
         mobileConfigData={mobileConfig.info ?? undefined}
+
+        RegisterData={mobile.info ?? undefined}
+        RegisterConfigData={mobileConfig.info ?? undefined}
 
         datalogger={datalogger.info ?? undefined}
         gpsData={gps.info ?? undefined}

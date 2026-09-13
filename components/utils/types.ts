@@ -167,6 +167,31 @@ export interface RenderModalsProps {
   mqttConfigData: MqttConfigData
 }
 
+export interface RenderBluetoothModalsProps {
+  selectedOption: string | null;
+  setSelectedOption: (option: string | null) => void;
+
+  RTC: MQTTData;
+  RTCConfig: MqttConfigData;
+
+  RegisterData: MobileInfo;
+  RegisterConfigData: MobileConfigData;
+
+  mobileData: MobileInfo;
+  gpsData: GPSData;
+  datalogger: DataloggerData;
+
+  mqttData: MQTTData;
+  drivers: Driver[];
+
+  serialData: SerialInfo;
+  iosData: IOSData;
+  commandsData: CommandsData;
+  iosPubData: IOSPubData;
+  mobileConfigData: MobileConfigData
+  mqttConfigData: MqttConfigData
+}
+
 export interface MqttConfigData {
   "hab_mqtt": boolean, 
   "host_mqtt": string, 
