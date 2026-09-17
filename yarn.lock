@@ -6148,6 +6148,16 @@ react-native-animatable@1.4.0:
   dependencies:
     prop-types "^15.8.1"
 
+react-native-ble-manager@^12.5.2:
+  version "12.5.2"
+  resolved "https://registry.yarnpkg.com/react-native-ble-manager/-/react-native-ble-manager-12.5.2.tgz#619a8bea125ac8a4210a3e953f9cc331939544d0"
+  integrity sha512-vWCVN1jCKFNRTh6kaJDBco4bdhc09CSwIkjBQ2lK7+1UT9CHS8Vao3DJoy8V1oXuJD/uvSSoHeDA7RgSYItTSw==
+
+react-native-ble-plx@3.5.1:
+  version "3.5.1"
+  resolved "https://registry.yarnpkg.com/react-native-ble-plx/-/react-native-ble-plx-3.5.1.tgz#344ce0d8803cf63d35b4f0588f18f795a05afea7"
+  integrity sha512-SxksmrUt9jG6DOarrrdkb5c/HBLSfZOKauo/9VQSSi3WJA4bmF78GkrtXrgSoGNk0m1ksacFTjB5DuL39xZq/g==
+
 react-native-device-info@^15.0.1:
   version "15.0.2"
   resolved "https://registry.yarnpkg.com/react-native-device-info/-/react-native-device-info-15.0.2.tgz#c7de1bb6baeb07e1bab70159ad540c5705cb8dc0"

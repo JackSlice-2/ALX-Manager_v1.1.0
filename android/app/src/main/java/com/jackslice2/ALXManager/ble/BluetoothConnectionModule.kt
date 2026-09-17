@@ -9,7 +9,10 @@ import android.bluetooth.BluetoothGattCharacteristic
 import android.bluetooth.BluetoothGattDescriptor
 import android.bluetooth.BluetoothManager
 import android.bluetooth.BluetoothProfile
+import android.content.BroadcastReceiver
 import android.content.Context
+import android.content.Intent
+import android.content.IntentFilter
 import android.os.Build
 import android.util.Log
 
@@ -29,196 +32,686 @@ class BluetoothConnectionModule(
 
         private const val TAG = "BluetoothConnection"
 
-        // =====================================================================
-        // EVENTS
-        // =====================================================================
+        private const val DEFAULT_PAIRING_PIN = "123456"
 
-        private const val EVENT_CONNECTED =
-            "BluetoothConnected"
+        const val EVENT_CONNECTED = "BluetoothConnected"
+        const val EVENT_DISCONNECTED = "BluetoothDisconnected"
 
-        private const val EVENT_DISCONNECTED =
-            "BluetoothDisconnected"
+        const val ERROR_BLUETOOTH_DISABLED = "BLUETOOTH_DISABLED"
+        const val ERROR_DEVICE_NOT_FOUND = "BLUETOOTH_DEVICE_NOT_FOUND"
+        const val ERROR_CONNECTION_FAILED = "BLUETOOTH_CONNECTION_FAILED"
+        const val ERROR_CONNECTION_IN_PROGRESS = "BLUETOOTH_CONNECTION_IN_PROGRESS"
+        const val ERROR_PAIRING_FAILED = "BLUETOOTH_PAIRING_FAILED"
 
-        private const val EVENT_PAIRING_REQUEST =
-            "BluetoothPairingRequest"
+        @Volatile
+        private var instance: BluetoothConnectionModule? = null
 
-        private const val EVENT_BOND_STATE =
-            "BluetoothBondStateChanged"
-
-        // =====================================================================
-        // UUIDS
-        // =====================================================================
-
-        private const val ALX_SERVICE_UUID =
-            "12345678-1234-5678-1234-56789abcdef7"
-
-        private const val ALX_TX_UUID =
-            "12345678-1234-5678-1234-56789abcdef8"
-
-        private const val ALX_RX_UUID =
-            "12345678-1234-5678-1234-56789abcdef9"
-
-        private const val ALX_RX2_UUID =
-            "12345678-1234-5678-1234-56789abcdefa"
-
-        private const val CCCD_UUID =
-            "00002902-0000-1000-8000-00805f9b34fb"
-
-        // =====================================================================
-        // ERRORS
-        // =====================================================================
-
-        private const val ERROR_BLUETOOTH_DISABLED =
-            "BLUETOOTH_DISABLED"
-
-        private const val ERROR_DEVICE_NOT_FOUND =
-            "BLUETOOTH_DEVICE_NOT_FOUND"
-
-        private const val ERROR_CONNECTION_FAILED =
-            "BLUETOOTH_CONNECTION_FAILED"
-
-        private const val ERROR_CONNECTION_IN_PROGRESS =
-            "BLUETOOTH_CONNECTION_IN_PROGRESS"
-
-        // =====================================================================
-        // ACTIVE GATT
-        // =====================================================================
-
+        @Volatile
         private var activeGatt: BluetoothGatt? = null
 
+        @Volatile
         private var activeDevice: BluetoothDevice? = null
 
-        fun getGatt(): BluetoothGatt? {
-            return activeGatt
-        }
+        fun getGatt(): BluetoothGatt? = activeGatt
 
-        fun getDevice(): BluetoothDevice? {
-            return activeDevice
-        }
+        fun getDevice(): BluetoothDevice? = activeDevice
 
         fun setGatt(gatt: BluetoothGatt?) {
-
             activeGatt = gatt
-            activeDevice = gatt?.device
+        }
 
-            Log.d(
-                TAG,
-                "setGatt(): ${gatt?.device?.address}"
-            )
+        fun setDevice(device: BluetoothDevice?) {
+            activeDevice = device
         }
 
         fun clearGatt() {
-
-            Log.d(
-                TAG,
-                "clearGatt()"
-            )
-
             activeGatt = null
             activeDevice = null
         }
-    }
 
-    // =========================================================================
-    // CONNECTION STATE
-    // =========================================================================
+        fun onGattReady() {
+            val module = instance
 
-    private var pendingPromise: Promise? = null
-
-    private var pendingDevice: BluetoothDevice? = null
-
-    private var connectionInProgress = false
-
-    private var servicesDiscovered = false
-
-    private var rxNotificationConfigured = false
-
-    // =========================================================================
-    // DISCOVERED ALX CHARACTERISTICS
-    // =========================================================================
-
-    private var txCharacteristic: BluetoothGattCharacteristic? = null
-
-    private var rxCharacteristic: BluetoothGattCharacteristic? = null
-
-    private var rx2Characteristic: BluetoothGattCharacteristic? = null
-
-    // =========================================================================
-    // RN MODULE
-    // =========================================================================
-
-    override fun getName(): String {
-        return "BluetoothConnection"
-    }
-
-    // =========================================================================
-    // EVENTS
-    // =========================================================================
-
-    private fun emitEvent(
-        eventName: String,
-        params: WritableMap? = null
-    ) {
-
-        try {
-
-            if (!reactContext.hasActiveCatalystInstance()) {
-
-                Log.w(
-                    TAG,
-                    "React context inactive; dropping event=$eventName"
-                )
-
+            if (module == null) {
+                Log.e(TAG, "onGattReady(): module instance is null")
                 return
             }
 
-            reactContext
-                .getJSModule(
-                    DeviceEventManagerModule
-                        .RCTDeviceEventEmitter::class.java
+            module.handleGattReady()
+        }
+    }
+
+    private val bluetoothManager: BluetoothManager? =
+        reactContext.getSystemService(
+            Context.BLUETOOTH_SERVICE
+        ) as? BluetoothManager
+
+    private val bluetoothAdapter: BluetoothAdapter?
+        get() = bluetoothManager?.adapter
+
+    private var pendingPromise: Promise? = null
+    private var pendingDevice: BluetoothDevice? = null
+
+    private var pendingPairingPin: String =
+        DEFAULT_PAIRING_PIN
+
+    private var connectionInProgress = false
+    private var pairingInProgress = false
+
+    private var servicesDiscovered = false
+    private var rxNotificationConfigured = false
+
+    private var pairingReceiverRegistered = false
+
+    private var pairOnlyRequest = false
+
+    override fun getName(): String =
+        "BluetoothConnection"
+
+    private val pairingReceiver =
+        object : BroadcastReceiver() {
+
+            @SuppressLint("MissingPermission")
+            override fun onReceive(
+                context: Context?,
+                intent: Intent?
+            ) {
+
+                if (intent == null) {
+                    return
+                }
+
+                when (intent.action) {
+
+                    BluetoothDevice.ACTION_PAIRING_REQUEST -> {
+
+                        val device =
+                            getDeviceFromIntent(intent)
+
+                        if (device == null) {
+                            Log.e(
+                                TAG,
+                                "PAIRING REQUEST: device == null"
+                            )
+                            return
+                        }
+
+                        if (!isPendingDevice(device)) {
+                            Log.w(
+                                TAG,
+                                "Ignoring pairing request from " +
+                                    "unexpected device ${device.address}"
+                            )
+                            return
+                        }
+
+                        val variant =
+                            intent.getIntExtra(
+                                BluetoothDevice.EXTRA_PAIRING_VARIANT,
+                                BluetoothDevice.PAIRING_VARIANT_PIN
+                            )
+
+                        Log.d(TAG, "========================================")
+                        Log.d(TAG, "BLE PAIRING REQUEST")
+                        Log.d(TAG, "Device  : ${device.address}")
+                        Log.d(TAG, "Name    : ${safeDeviceName(device)}")
+                        Log.d(
+                            TAG,
+                            "Variant : $variant " +
+                                "(${pairingVariantName(variant)})"
+                        )
+
+                        if (
+                            variant ==
+                            BluetoothDevice.PAIRING_VARIANT_PIN
+                        ) {
+                            Log.d(
+                                TAG,
+                                "ProvidePin stage reached"
+                            )
+
+                            Log.d(
+                                TAG,
+                                "Providing SMP pairing PIN: " +
+                                    pendingPairingPin
+                            )
+                        }
+
+                        Log.d(TAG, "========================================")
+
+                        handlePairingRequest(
+                            intent,
+                            device,
+                            variant
+                        )
+                    }
+
+                    BluetoothDevice.ACTION_BOND_STATE_CHANGED -> {
+
+                        val device =
+                            getDeviceFromIntent(intent)
+                                ?: return
+
+                        if (!isPendingDevice(device)) {
+                            Log.d(
+                                TAG,
+                                "Ignoring bond event from " +
+                                    "unexpected device ${device.address}"
+                            )
+                            return
+                        }
+
+                        val state =
+                            intent.getIntExtra(
+                                BluetoothDevice.EXTRA_BOND_STATE,
+                                BluetoothDevice.BOND_NONE
+                            )
+
+                        val previousState =
+                            intent.getIntExtra(
+                                BluetoothDevice.EXTRA_PREVIOUS_BOND_STATE,
+                                BluetoothDevice.BOND_NONE
+                            )
+
+                        Log.d(
+                            TAG,
+                            "BOND STATE: " +
+                                "${bondStateName(previousState)} -> " +
+                                bondStateName(state)
+                        )
+
+                        when (state) {
+
+                            BluetoothDevice.BOND_BONDING -> {
+
+                                pairingInProgress = true
+
+                                Log.d(
+                                    TAG,
+                                    "BLE PAIRING IN PROGRESS"
+                                )
+                            }
+
+                            BluetoothDevice.BOND_BONDED -> {
+
+                                pairingInProgress = false
+
+                                Log.d(TAG, "========================================")
+                                Log.d(TAG, "BLE PAIRING SUCCESSFUL")
+                                Log.d(TAG, "Device : ${device.address}")
+                                Log.d(TAG, "========================================")
+
+                                unregisterPairingReceiver()
+
+                                if (pairOnlyRequest) {
+
+                                    Log.d(
+                                        TAG,
+                                        "Pair-only request complete"
+                                    )
+
+                                    pairOnlyRequest = false
+                                    connectionInProgress = false
+
+                                    val promise = pendingPromise
+
+                                    pendingPromise = null
+                                    pendingDevice = null
+
+                                    promise?.resolve(true)
+
+                                    return
+                                }
+
+                                val bondedDevice =
+                                    pendingDevice ?: device
+
+                                connectGatt(bondedDevice)
+                            }
+
+                            BluetoothDevice.BOND_NONE -> {
+
+                                if (
+                                    pairingInProgress ||
+                                    connectionInProgress
+                                ) {
+
+                                    pairingInProgress = false
+
+                                    Log.e(
+                                        TAG,
+                                        "========================================"
+                                    )
+
+                                    Log.e(
+                                        TAG,
+                                        "BLE PAIRING FAILED"
+                                    )
+
+                                    Log.e(
+                                        TAG,
+                                        "Device : ${device.address}"
+                                    )
+
+                                    Log.e(
+                                        TAG,
+                                        "========================================"
+                                    )
+
+                                    unregisterPairingReceiver()
+
+                                    failPendingConnection(
+                                        ERROR_PAIRING_FAILED,
+                                        "Bluetooth pairing failed"
+                                    )
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+    private fun getDeviceFromIntent(
+        intent: Intent
+    ): BluetoothDevice? {
+
+        return try {
+
+            if (
+                Build.VERSION.SDK_INT >=
+                Build.VERSION_CODES.TIRAMISU
+            ) {
+
+                intent.getParcelableExtra(
+                    BluetoothDevice.EXTRA_DEVICE,
+                    BluetoothDevice::class.java
                 )
-                .emit(
-                    eventName,
-                    params
+
+            } else {
+
+                @Suppress("DEPRECATION")
+                intent.getParcelableExtra(
+                    BluetoothDevice.EXTRA_DEVICE
                 )
+            }
 
         } catch (e: Exception) {
 
             Log.e(
                 TAG,
-                "Failed to emit event: $eventName",
+                "Could not extract BluetoothDevice",
+                e
+            )
+
+            null
+        }
+    }
+
+    @SuppressLint("MissingPermission")
+    private fun isPendingDevice(
+        device: BluetoothDevice
+    ): Boolean {
+
+        val expected =
+            pendingDevice ?: return false
+
+        return try {
+
+            expected.address.equals(
+                device.address,
+                ignoreCase = true
+            )
+
+        } catch (_: Exception) {
+
+            false
+        }
+    }
+
+    @SuppressLint("MissingPermission")
+    private fun safeDeviceName(
+        device: BluetoothDevice?
+    ): String? {
+
+        if (device == null) {
+            return null
+        }
+
+        return try {
+            device.name
+        } catch (_: Exception) {
+            null
+        }
+    }
+
+    private fun pairingVariantName(
+        variant: Int
+    ): String {
+
+        return when (variant) {
+
+            BluetoothDevice.PAIRING_VARIANT_PIN ->
+                "PIN"
+
+            2 ->
+                "PASSKEY"
+
+            3 ->
+                "PASSKEY_CONFIRMATION"
+
+            4 ->
+                "CONSENT"
+
+            5 ->
+                "DISPLAY_PASSKEY"
+
+            6 ->
+                "DISPLAY_PIN"
+
+            else ->
+                "UNKNOWN"
+        }
+    }
+
+    @SuppressLint("MissingPermission")
+    private fun handlePairingRequest(
+        intent: Intent,
+        device: BluetoothDevice,
+        variant: Int
+    ) {
+
+        try {
+
+            when (variant) {
+
+                BluetoothDevice.PAIRING_VARIANT_PIN -> {
+
+                    val pinBytes =
+                        pendingPairingPin.toByteArray(
+                            Charsets.UTF_8
+                        )
+
+                    val pinResult =
+                        try {
+
+                            device.setPin(
+                                pinBytes
+                            )
+
+                        } catch (e: Exception) {
+
+                            Log.e(
+                                TAG,
+                                "setPin() exception",
+                                e
+                            )
+
+                            false
+                        }
+
+                    Log.d(
+                        TAG,
+                        "setPin() -> $pinResult"
+                    )
+
+                    try {
+
+                        val confirmation =
+                            device.setPairingConfirmation(
+                                true
+                            )
+
+                        Log.d(
+                            TAG,
+                            "setPairingConfirmation(true) -> " +
+                                confirmation
+                        )
+
+                    } catch (e: Exception) {
+
+                        Log.d(
+                            TAG,
+                            "PIN confirmation not required"
+                        )
+                    }
+                }
+
+                2 -> {
+
+                    Log.d(
+                        TAG,
+                        "Pairing variant = PASSKEY"
+                    )
+
+                    val passkeyBytes =
+                        pendingPairingPin.toByteArray(
+                            Charsets.UTF_8
+                        )
+
+                    val result =
+                        try {
+
+                            device.setPin(
+                                passkeyBytes
+                            )
+
+                        } catch (e: Exception) {
+
+                            Log.e(
+                                TAG,
+                                "setPin(passkey) exception",
+                                e
+                            )
+
+                            false
+                        }
+
+                    Log.d(
+                        TAG,
+                        "setPin(passkey) -> $result"
+                    )
+                }
+
+                3 -> {
+
+                    val pairingKey =
+                        intent.getIntExtra(
+                            BluetoothDevice.EXTRA_PAIRING_KEY,
+                            -1
+                        )
+
+                    Log.d(
+                        TAG,
+                        "Pairing variant = PASSKEY_CONFIRMATION"
+                    )
+
+                    Log.d(
+                        TAG,
+                        "Pairing key = $pairingKey"
+                    )
+
+                    try {
+
+                        val result =
+                            device.setPairingConfirmation(
+                                true
+                            )
+
+                        Log.d(
+                            TAG,
+                            "setPairingConfirmation(true) -> " +
+                                result
+                        )
+
+                    } catch (e: Exception) {
+
+                        Log.e(
+                            TAG,
+                            "setPairingConfirmation() failed",
+                            e
+                        )
+                    }
+                }
+
+                4,
+                5,
+                6 -> {
+
+                    Log.d(
+                        TAG,
+                        "Pairing variant = " +
+                            pairingVariantName(variant)
+                    )
+
+                    try {
+
+                        val result =
+                            device.setPairingConfirmation(
+                                true
+                            )
+
+                        Log.d(
+                            TAG,
+                            "setPairingConfirmation(true) -> " +
+                                result
+                        )
+
+                    } catch (e: Exception) {
+
+                        Log.e(
+                            TAG,
+                            "setPairingConfirmation() failed",
+                            e
+                        )
+                    }
+                }
+
+                else -> {
+
+                    Log.w(
+                        TAG,
+                        "Unknown pairing variant: $variant"
+                    )
+
+                    try {
+
+                        val result =
+                            device.setPairingConfirmation(
+                                true
+                            )
+
+                        Log.d(
+                            TAG,
+                            "Fallback confirmation -> $result"
+                        )
+
+                    } catch (e: Exception) {
+
+                        Log.e(
+                            TAG,
+                            "Fallback pairing confirmation failed",
+                            e
+                        )
+                    }
+                }
+            }
+
+        } catch (e: Exception) {
+
+            Log.e(
+                TAG,
+                "Exception handling pairing request",
                 e
             )
         }
     }
 
-    private fun emitSimpleEvent(
-        eventName: String
-    ) {
+    private fun registerPairingReceiver() {
 
-        emitEvent(
-            eventName,
-            Arguments.createMap()
-        )
+        if (pairingReceiverRegistered) {
+            return
+        }
+
+        val filter =
+            IntentFilter().apply {
+
+                addAction(
+                    BluetoothDevice.ACTION_PAIRING_REQUEST
+                )
+
+                addAction(
+                    BluetoothDevice.ACTION_BOND_STATE_CHANGED
+                )
+            }
+
+        try {
+
+            if (
+                Build.VERSION.SDK_INT >=
+                Build.VERSION_CODES.TIRAMISU
+            ) {
+
+                reactContext.registerReceiver(
+                    pairingReceiver,
+                    filter,
+                    Context.RECEIVER_EXPORTED
+                )
+
+            } else {
+
+                @Suppress("DEPRECATION")
+                reactContext.registerReceiver(
+                    pairingReceiver,
+                    filter
+                )
+            }
+
+            pairingReceiverRegistered = true
+
+            Log.d(
+                TAG,
+                "Bluetooth pairing receiver registered"
+            )
+
+        } catch (e: Exception) {
+
+            Log.e(
+                TAG,
+                "Failed to register pairing receiver",
+                e
+            )
+        }
     }
 
-    // =========================================================================
-    // BLUETOOTH ADAPTER
-    // =========================================================================
+    private fun unregisterPairingReceiver() {
 
-    private fun getBluetoothAdapter(): BluetoothAdapter? {
+        if (!pairingReceiverRegistered) {
+            return
+        }
 
-        val manager =
-            reactContext.getSystemService(
-                Context.BLUETOOTH_SERVICE
-            ) as? BluetoothManager
+        try {
 
-        return manager?.adapter
+            reactContext.unregisterReceiver(
+                pairingReceiver
+            )
+
+            Log.d(
+                TAG,
+                "Bluetooth pairing receiver unregistered"
+            )
+
+        } catch (e: Exception) {
+
+            Log.w(
+                TAG,
+                "Failed to unregister pairing receiver",
+                e
+            )
+        }
+
+        pairingReceiverRegistered = false
     }
-
-    // =========================================================================
-    // CONNECT
-    // =========================================================================
 
     @SuppressLint("MissingPermission")
     @ReactMethod
@@ -228,23 +721,27 @@ class BluetoothConnectionModule(
         promise: Promise
     ) {
 
+        Log.d(TAG, "========================================")
+        Log.d(TAG, "connectBleDevice()")
+        Log.d(TAG, "Address : $address")
+        Log.d(TAG, "========================================")
+
         if (connectionInProgress) {
 
             promise.reject(
                 ERROR_CONNECTION_IN_PROGRESS,
-                "A Bluetooth connection is already in progress"
+                "Bluetooth connection already in progress"
             )
 
             return
         }
 
-        val adapter =
-            getBluetoothAdapter()
+        val adapter = bluetoothAdapter
 
         if (adapter == null) {
 
             promise.reject(
-                "BLUETOOTH_UNAVAILABLE",
+                ERROR_BLUETOOTH_DISABLED,
                 "Bluetooth adapter unavailable"
             )
 
@@ -268,11 +765,12 @@ class BluetoothConnectionModule(
                     address
                 )
 
-            } catch (_: IllegalArgumentException) {
+            } catch (e: IllegalArgumentException) {
 
                 promise.reject(
                     ERROR_DEVICE_NOT_FOUND,
-                    "Invalid Bluetooth address: $address"
+                    "Invalid Bluetooth address: $address",
+                    e
                 )
 
                 return
@@ -281,164 +779,326 @@ class BluetoothConnectionModule(
         pendingPromise = promise
         pendingDevice = device
 
+        pairOnlyRequest = false
+
+        pendingPairingPin =
+            if (password.isNullOrBlank()) {
+                DEFAULT_PAIRING_PIN
+            } else {
+                password
+            }
+
         connectionInProgress = true
+        pairingInProgress = false
         servicesDiscovered = false
         rxNotificationConfigured = false
 
-        txCharacteristic = null
-        rxCharacteristic = null
-        rx2Characteristic = null
+        Log.d(
+            TAG,
+            "SMP pairing PIN configured: $pendingPairingPin"
+        )
+
+        val bondState =
+            try {
+                device.bondState
+            } catch (_: Exception) {
+                BluetoothDevice.BOND_NONE
+            }
 
         Log.d(
             TAG,
-            "================================================"
+            "Bond state = ${bondStateName(bondState)}"
         )
 
-        Log.d(
-            TAG,
-            "DIRECT BLE GATT CONNECT"
-        )
+        when (bondState) {
 
-        Log.d(
-            TAG,
-            "Name        : ${device.name}"
-        )
+            BluetoothDevice.BOND_BONDED -> {
 
-        Log.d(
-            TAG,
-            "Address     : ${device.address}"
-        )
+                Log.d(
+                    TAG,
+                    "Device already bonded"
+                )
 
-        Log.d(
-            TAG,
-            "Bond state  : ${bondStateName(device.bondState)}"
-        )
+                unregisterPairingReceiver()
 
-        Log.d(
-            TAG,
-            "Password    : ${
-                if (password.isNullOrEmpty()) {
-                    "<unused>"
-                } else {
-                    "<provided>"
-                }
-            }"
-        )
+                connectGatt(device)
+            }
 
-        Log.d(
-            TAG,
-            "Pairing     : SKIPPED"
-        )
+            BluetoothDevice.BOND_BONDING -> {
 
-        Log.d(
-            TAG,
-            "Transport   : LE"
-        )
+                Log.d(
+                    TAG,
+                    "Device already bonding"
+                )
 
-        Log.d(
-            TAG,
-            "Ready       : SERVICE DISCOVERY"
-        )
+                pairingInProgress = true
 
-        Log.d(
-            TAG,
-            "RX CCCD     : MANUAL / EXPLICIT"
-        )
+                registerPairingReceiver()
+            }
 
-        Log.d(
-            TAG,
-            "================================================"
-        )
+            else -> {
 
-        connectGatt(device)
+                Log.d(
+                    TAG,
+                    "Device not bonded - starting pairing"
+                )
+
+                registerPairingReceiver()
+
+                createBond(device)
+            }
+        }
     }
 
-    // =========================================================================
-    // OPEN GATT
-    // =========================================================================
+    @SuppressLint("MissingPermission")
+    private fun createBond(
+        device: BluetoothDevice
+    ) {
+
+        Log.d(TAG, "========================================")
+        Log.d(TAG, "STARTING BLE PAIRING")
+        Log.d(TAG, "Device : ${device.address}")
+        Log.d(TAG, "Name   : ${safeDeviceName(device)}")
+        Log.d(TAG, "PIN    : $pendingPairingPin")
+        Log.d(
+            TAG,
+            "Bond before createBond(): " +
+                bondStateName(device.bondState)
+        )
+        Log.d(TAG, "========================================")
+
+        pairingInProgress = true
+
+        val result =
+            try {
+
+                device.createBond()
+
+            } catch (e: Exception) {
+
+                Log.e(
+                    TAG,
+                    "createBond() exception",
+                    e
+                )
+
+                false
+            }
+
+        Log.d(
+            TAG,
+            "createBond() -> $result"
+        )
+
+        val state =
+            try {
+                device.bondState
+            } catch (_: Exception) {
+                BluetoothDevice.BOND_NONE
+            }
+
+        Log.d(
+            TAG,
+            "Bond immediately after createBond(): " +
+                bondStateName(state)
+        )
+
+        if (result) {
+            return
+        }
+
+        if (
+            state ==
+            BluetoothDevice.BOND_BONDED
+        ) {
+
+            pairingInProgress = false
+            unregisterPairingReceiver()
+
+            if (pairOnlyRequest) {
+
+                val promise = pendingPromise
+
+                pendingPromise = null
+                pendingDevice = null
+
+                pairOnlyRequest = false
+                connectionInProgress = false
+
+                promise?.resolve(true)
+
+            } else {
+
+                connectGatt(device)
+            }
+
+            return
+        }
+
+        if (
+            state ==
+            BluetoothDevice.BOND_BONDING
+        ) {
+
+            pairingInProgress = true
+            return
+        }
+
+        pairingInProgress = false
+
+        unregisterPairingReceiver()
+
+        failPendingConnection(
+            ERROR_PAIRING_FAILED,
+            "Could not start Bluetooth pairing"
+        )
+    }
+
+    private fun handleGattReady() {
+
+        Log.d(TAG, "========================================")
+        Log.d(TAG, "ALX GATT FULLY READY")
+        Log.d(
+            TAG,
+            "Services discovered : $servicesDiscovered"
+        )
+        Log.d(
+            TAG,
+            "RX notifications    : confirmed"
+        )
+        Log.d(TAG, "========================================")
+
+        if (activeGatt == null) {
+
+            Log.e(
+                TAG,
+                "GATT ready received but activeGatt == null"
+            )
+
+            return
+        }
+
+        rxNotificationConfigured = true
+        connectionInProgress = false
+        pairingInProgress = false
+
+        val promise = pendingPromise
+
+        pendingPromise = null
+        pendingDevice = null
+        pairOnlyRequest = false
+
+        unregisterPairingReceiver()
+
+        if (promise != null) {
+
+            Log.d(
+                TAG,
+                "Resolving connectBleDevice() promise"
+            )
+
+            val result =
+                Arguments
+                    .createMap()
+                    .apply {
+
+                        putBoolean(
+                            "connected",
+                            true
+                        )
+
+                        putBoolean(
+                            "gattReady",
+                            true
+                        )
+
+                        putBoolean(
+                            "servicesDiscovered",
+                            servicesDiscovered
+                        )
+
+                        putBoolean(
+                            "notificationsConfigured",
+                            true
+                        )
+
+                        putString(
+                            "address",
+                            activeDevice?.address
+                        )
+
+                        putString(
+                            "name",
+                            safeDeviceName(activeDevice)
+                        )
+                    }
+
+            promise.resolve(result)
+        }
+
+        Log.d(
+            TAG,
+            "Connection workflow complete"
+        )
+    }
 
     @SuppressLint("MissingPermission")
     private fun connectGatt(
         device: BluetoothDevice
     ) {
 
-        try {
+        Log.d(TAG, "========================================")
+        Log.d(TAG, "OPENING GATT")
+        Log.d(TAG, "Device : ${device.address}")
+        Log.d(TAG, "Name   : ${safeDeviceName(device)}")
+        Log.d(
+            TAG,
+            "Bond   : ${bondStateName(device.bondState)}"
+        )
+        Log.d(TAG, "========================================")
 
-            // -----------------------------------------------------------------
-            // CLOSE PREVIOUS GATT
-            // -----------------------------------------------------------------
+        activeGatt?.let { oldGatt ->
 
-            activeGatt?.let { oldGatt ->
-
-                Log.d(
-                    TAG,
-                    "Closing previous GATT"
-                )
-
-                try {
-                    oldGatt.disconnect()
-                } catch (_: Exception) {
-                }
-
-                try {
-                    oldGatt.close()
-                } catch (_: Exception) {
-                }
+            try {
+                oldGatt.disconnect()
+            } catch (_: Exception) {
             }
 
-            // -----------------------------------------------------------------
-            // CLEAR OTHER BLE MODULES
-            // -----------------------------------------------------------------
+            try {
+                oldGatt.close()
+            } catch (_: Exception) {
+            }
+        }
 
+        activeGatt = null
+        activeDevice = device
+
+        servicesDiscovered = false
+        rxNotificationConfigured = false
+
+        try {
             AlxBleTransportModule.clearGatt()
+        } catch (e: Exception) {
+            Log.w(
+                TAG,
+                "AlxBleTransportModule.clearGatt() failed",
+                e
+            )
+        }
+
+        try {
             AlxBleGattModule.clearGatt()
-
-            activeGatt = null
-            activeDevice = device
-
-            servicesDiscovered = false
-            rxNotificationConfigured = false
-
-            txCharacteristic = null
-            rxCharacteristic = null
-            rx2Characteristic = null
-
-            Log.d(
+        } catch (e: Exception) {
+            Log.w(
                 TAG,
-                "================================================"
+                "AlxBleGattModule.clearGatt() failed",
+                e
             )
+        }
 
-            Log.d(
-                TAG,
-                "OPENING GATT"
-            )
+        val gatt =
+            try {
 
-            Log.d(
-                TAG,
-                "Device    : ${device.address}"
-            )
-
-            Log.d(
-                TAG,
-                "Transport : LE"
-            )
-
-            Log.d(
-                TAG,
-                "Pairing   : NOT REQUIRED"
-            )
-
-            Log.d(
-                TAG,
-                "CCCD      : NOT CONFIGURED AUTOMATICALLY"
-            )
-
-            Log.d(
-                TAG,
-                "================================================"
-            )
-
-            val gatt =
                 if (
                     Build.VERSION.SDK_INT >=
                     Build.VERSION_CODES.M
@@ -461,62 +1121,37 @@ class BluetoothConnectionModule(
                     )
                 }
 
-            activeGatt = gatt
+            } catch (e: Exception) {
 
-            if (gatt == null) {
-
-                failPendingConnection(
-                    ERROR_CONNECTION_FAILED,
-                    "connectGatt() returned null"
-                )
-
-            } else {
-
-                Log.d(
+                Log.e(
                     TAG,
-                    "connectGatt() returned GATT object"
+                    "connectGatt() exception",
+                    e
                 )
+
+                null
             }
 
-        } catch (e: SecurityException) {
-
-            Log.e(
-                TAG,
-                "Bluetooth permission denied while opening GATT",
-                e
-            )
+        if (gatt == null) {
 
             failPendingConnection(
                 ERROR_CONNECTION_FAILED,
-                "Bluetooth permission denied"
+                "connectGatt() returned null"
             )
 
-        } catch (e: Exception) {
-
-            Log.e(
-                TAG,
-                "Failed to open GATT",
-                e
-            )
-
-            failPendingConnection(
-                ERROR_CONNECTION_FAILED,
-                e.message
-                    ?: "Failed to open GATT connection"
-            )
+            return
         }
-    }
 
-    // =========================================================================
-    // GATT CALLBACK
-    // =========================================================================
+        activeGatt = gatt
+
+        Log.d(
+            TAG,
+            "connectGatt() returned GATT object"
+        )
+    }
 
     private val gattCallback =
         object : BluetoothGattCallback() {
-
-            // =================================================================
-            // CONNECTION STATE
-            // =================================================================
 
             @SuppressLint("MissingPermission")
             override fun onConnectionStateChange(
@@ -527,56 +1162,51 @@ class BluetoothConnectionModule(
 
                 Log.d(
                     TAG,
-                    "GATT STATE CHANGE: " +
+                    "onConnectionStateChange() " +
                         "status=$status " +
-                        "state=${gattStateName(newState)}"
+                        "(${gattStatusName(status)}) " +
+                        "state=$newState"
                 )
+
+                val currentGatt = activeGatt
+
+                if (
+                    currentGatt != null &&
+                    currentGatt !== gatt
+                ) {
+
+                    Log.w(
+                        TAG,
+                        "Ignoring stale GATT callback from " +
+                            "${gatt.device.address}"
+                    )
+
+                    return
+                }
 
                 when (newState) {
 
-                    // =========================================================
-                    // CONNECTED
-                    // =========================================================
-
                     BluetoothProfile.STATE_CONNECTED -> {
 
+                        Log.d(TAG, "========================================")
+                        Log.d(TAG, "BLE GATT CONNECTED")
                         Log.d(
                             TAG,
-                            "================================================"
+                            "Status : $status " +
+                                "(${gattStatusName(status)})"
                         )
-
                         Log.d(
                             TAG,
-                            "GATT CONNECTED"
+                            "Device : ${gatt.device.address}"
                         )
-
                         Log.d(
                             TAG,
-                            "Device: ${gatt.device.address}"
+                            "Bond   : " +
+                                bondStateName(
+                                    gatt.device.bondState
+                                )
                         )
-
-                        Log.d(
-                            TAG,
-                            "Pairing: NOT USED"
-                        )
-
-                        Log.d(
-                            TAG,
-                            "Starting service discovery..."
-                        )
-
-                        Log.d(
-                            TAG,
-                            "================================================"
-                        )
-
-                        // -----------------------------------------------------
-                        // Store the exact GATT instance.
-                        //
-                        // Do NOT configure AlxBleGattModule yet.
-                        //
-                        // TX/RX/RX2 are only known after service discovery.
-                        // -----------------------------------------------------
+                        Log.d(TAG, "========================================")
 
                         activeGatt = gatt
                         activeDevice = gatt.device
@@ -584,135 +1214,90 @@ class BluetoothConnectionModule(
                         servicesDiscovered = false
                         rxNotificationConfigured = false
 
-                        txCharacteristic = null
-                        rxCharacteristic = null
-                        rx2Characteristic = null
+                        emitConnected(gatt.device)
 
-                        emitSimpleEvent(
-                            EVENT_CONNECTED
-                        )
-
-                        try {
-
-                            val started =
+                        val started =
+                            try {
                                 gatt.discoverServices()
-
-                            Log.d(
-                                TAG,
-                                "discoverServices() -> $started"
-                            )
-
-                            if (!started) {
-
-                                failPendingConnection(
-                                    ERROR_CONNECTION_FAILED,
-                                    "Failed to start service discovery"
+                            } catch (e: Exception) {
+                                Log.e(
+                                    TAG,
+                                    "discoverServices() exception",
+                                    e
                                 )
+                                false
                             }
 
-                        } catch (e: Exception) {
+                        Log.d(
+                            TAG,
+                            "discoverServices() -> $started"
+                        )
 
-                            Log.e(
-                                TAG,
-                                "Service discovery exception",
-                                e
-                            )
+                        if (!started) {
 
                             failPendingConnection(
                                 ERROR_CONNECTION_FAILED,
-                                e.message
-                                    ?: "Failed to discover services"
+                                "discoverServices() failed to start"
                             )
                         }
                     }
 
-                    // =========================================================
-                    // DISCONNECTED
-                    // =========================================================
-
                     BluetoothProfile.STATE_DISCONNECTED -> {
 
+                        Log.d(TAG, "========================================")
+                        Log.d(TAG, "BLE GATT DISCONNECTED")
                         Log.d(
                             TAG,
-                            "================================================"
+                            "Status : $status " +
+                                "(${gattStatusName(status)})"
                         )
-
                         Log.d(
                             TAG,
-                            "GATT DISCONNECTED"
+                            "Device : ${gatt.device.address}"
+                        )
+                        Log.d(TAG, "========================================")
+
+                        servicesDiscovered = false
+                        rxNotificationConfigured = false
+
+                        emitDisconnected(
+                            gatt.device,
+                            status
                         )
 
-                        Log.d(
-                            TAG,
-                            "Device: ${gatt.device.address}"
-                        )
+                        try {
+                            AlxBleTransportModule.clearGatt()
+                        } catch (_: Exception) {
+                        }
 
-                        Log.d(
-                            TAG,
-                            "status=$status"
-                        )
+                        try {
+                            AlxBleGattModule.clearGatt()
+                        } catch (_: Exception) {
+                        }
 
-                        Log.d(
-                            TAG,
-                            "Services discovered: $servicesDiscovered"
-                        )
+                        if (activeGatt === gatt) {
 
-                        Log.d(
-                            TAG,
-                            "RX notification configured: " +
-                                rxNotificationConfigured
-                        )
+                            activeGatt = null
+                            activeDevice = null
+                        }
 
-                        Log.d(
-                            TAG,
-                            "Connection promise pending: " +
-                                (pendingPromise != null)
-                        )
+                        if (
+                            pendingPromise != null &&
+                            connectionInProgress
+                        ) {
 
-                        Log.d(
-                            TAG,
-                            "================================================"
-                        )
+                            val promise = pendingPromise
 
-                        emitEvent(
-                            EVENT_DISCONNECTED,
-                            Arguments.createMap().apply {
+                            pendingPromise = null
+                            pendingDevice = null
 
-                                putString(
-                                    "address",
-                                    gatt.device.address
-                                )
+                            pairOnlyRequest = false
+                            connectionInProgress = false
+                            pairingInProgress = false
 
-                                putInt(
-                                    "status",
-                                    status
-                                )
-
-                                putBoolean(
-                                    "servicesDiscovered",
-                                    servicesDiscovered
-                                )
-
-                                putBoolean(
-                                    "rxNotificationConfigured",
-                                    rxNotificationConfigured
-                                )
-                            }
-                        )
-
-                        // -----------------------------------------------------
-                        // CLEAR ALL BLE MODULE STATE
-                        // -----------------------------------------------------
-
-                        AlxBleTransportModule.clearGatt()
-                        AlxBleGattModule.clearGatt()
-
-                        if (connectionInProgress) {
-
-                            failPendingConnection(
+                            promise?.reject(
                                 ERROR_CONNECTION_FAILED,
-                                "BLE disconnected during connection. " +
-                                    "status=$status"
+                                "BLE disconnected before connection was ready"
                             )
                         }
 
@@ -720,576 +1305,86 @@ class BluetoothConnectionModule(
                             gatt.close()
                         } catch (_: Exception) {
                         }
-
-                        if (activeGatt === gatt) {
-                            activeGatt = null
-                        }
-
-                        activeDevice = null
-
-                        txCharacteristic = null
-                        rxCharacteristic = null
-                        rx2Characteristic = null
-
-                        servicesDiscovered = false
-                        rxNotificationConfigured = false
                     }
                 }
             }
-
-            // =================================================================
-            // SERVICES DISCOVERED
-            // =================================================================
 
             override fun onServicesDiscovered(
                 gatt: BluetoothGatt,
                 status: Int
             ) {
 
-                Log.d(
-                    TAG,
-                    "================================================"
-                )
+                if (
+                    activeGatt != null &&
+                    activeGatt !== gatt
+                ) {
 
-                Log.d(
-                    TAG,
-                    "SERVICES DISCOVERED"
-                )
+                    Log.w(
+                        TAG,
+                        "Ignoring stale service discovery callback"
+                    )
 
-                Log.d(
-                    TAG,
-                    "status=$status"
-                )
+                    return
+                }
 
+                Log.d(TAG, "========================================")
+                Log.d(TAG, "GATT SERVICES DISCOVERED")
                 Log.d(
                     TAG,
-                    "serviceCount=${gatt.services.size}"
+                    "Status : $status " +
+                        "(${gattStatusName(status)})"
                 )
-
                 Log.d(
                     TAG,
-                    "================================================"
+                    "Services: ${gatt.services.size}"
                 )
+                Log.d(TAG, "========================================")
 
                 if (
                     status !=
                     BluetoothGatt.GATT_SUCCESS
                 ) {
 
+                    Log.e(
+                        TAG,
+                        "Service discovery failed: " +
+                            "$status (${gattStatusName(status)})"
+                    )
+
                     failPendingConnection(
                         ERROR_CONNECTION_FAILED,
-                        "GATT service discovery failed: status=$status"
+                        "GATT service discovery failed: $status"
                     )
 
                     return
                 }
-
-                // -------------------------------------------------------------
-                // Make sure this exact GATT is the active one.
-                // -------------------------------------------------------------
 
                 activeGatt = gatt
                 activeDevice = gatt.device
-
                 servicesDiscovered = true
 
-                // -------------------------------------------------------------
-                // FIND ALX SERVICE
-                // -------------------------------------------------------------
+                try {
 
-                val alxService =
-                    gatt.services.firstOrNull {
-                        it.uuid
-                            .toString()
-                            .equals(
-                                ALX_SERVICE_UUID,
-                                ignoreCase = true
-                            )
-                    }
+                    AlxBleGattModule.setGatt(gatt)
 
-                if (alxService == null) {
+                    AlxBleGattModule.onServicesDiscovered(
+                        gatt
+                    )
+
+                } catch (e: Exception) {
 
                     Log.e(
                         TAG,
-                        "ALX service NOT FOUND"
+                        "AlxBleGattModule service processing failed",
+                        e
                     )
 
                     failPendingConnection(
                         ERROR_CONNECTION_FAILED,
-                        "ALX service not found: $ALX_SERVICE_UUID"
+                        "ALX GATT processing failed"
                     )
-
-                    return
                 }
-
-                Log.d(
-                    TAG,
-                    "ALX service found: ${alxService.uuid}"
-                )
-
-                // -------------------------------------------------------------
-                // RESET CHARACTERISTICS
-                // -------------------------------------------------------------
-
-                txCharacteristic = null
-                rxCharacteristic = null
-                rx2Characteristic = null
-
-                // -------------------------------------------------------------
-                // FIND TX / RX / RX2
-                // -------------------------------------------------------------
-
-                for (characteristic in alxService.characteristics) {
-
-                    val uuid =
-                        characteristic.uuid
-                            .toString()
-                            .lowercase()
-
-                    val properties =
-                        characteristic.properties
-
-                    val propertyText =
-                        buildString {
-
-                            if (
-                                properties and
-                                BluetoothGattCharacteristic.PROPERTY_READ
-                                != 0
-                            ) {
-                                append("READ|")
-                            }
-
-                            if (
-                                properties and
-                                BluetoothGattCharacteristic.PROPERTY_WRITE
-                                != 0
-                            ) {
-                                append("WRITE|")
-                            }
-
-                            if (
-                                properties and
-                                BluetoothGattCharacteristic.PROPERTY_WRITE_NO_RESPONSE
-                                != 0
-                            ) {
-                                append("WRITE_NO_RESPONSE|")
-                            }
-
-                            if (
-                                properties and
-                                BluetoothGattCharacteristic.PROPERTY_NOTIFY
-                                != 0
-                            ) {
-                                append("NOTIFY|")
-                            }
-
-                            if (
-                                properties and
-                                BluetoothGattCharacteristic.PROPERTY_INDICATE
-                                != 0
-                            ) {
-                                append("INDICATE|")
-                            }
-
-                            if (isEmpty()) {
-                                append("NONE")
-                            } else {
-                                setLength(length - 1)
-                            }
-                        }
-
-                    Log.d(
-                        TAG,
-                        "Characteristic: $uuid properties=$propertyText"
-                    )
-
-                    // ---------------------------------------------------------
-                    // TX
-                    // ---------------------------------------------------------
-
-                    if (
-                        uuid.equals(
-                            ALX_TX_UUID,
-                            ignoreCase = true
-                        )
-                    ) {
-
-                        txCharacteristic =
-                            characteristic
-
-                        Log.d(
-                            TAG,
-                            "ALX TX found: ${characteristic.uuid}"
-                        )
-                    }
-
-                    // ---------------------------------------------------------
-                    // RX
-                    // ---------------------------------------------------------
-
-                    if (
-                        uuid.equals(
-                            ALX_RX_UUID,
-                            ignoreCase = true
-                        )
-                    ) {
-
-                        rxCharacteristic =
-                            characteristic
-
-                        Log.d(
-                            TAG,
-                            "ALX RX found: ${characteristic.uuid}"
-                        )
-
-                        val cccd =
-                            characteristic.descriptors
-                                .firstOrNull {
-                                    it.uuid
-                                        .toString()
-                                        .equals(
-                                            CCCD_UUID,
-                                            ignoreCase = true
-                                        )
-                                }
-
-                        if (cccd != null) {
-
-                            Log.d(
-                                TAG,
-                                "ALX RX CCCD found: ${cccd.uuid}"
-                            )
-
-                        } else {
-
-                            Log.w(
-                                TAG,
-                                "ALX RX CCCD NOT FOUND"
-                            )
-                        }
-                    }
-
-                    // ---------------------------------------------------------
-                    // RX2
-                    // ---------------------------------------------------------
-
-                    if (
-                        uuid.equals(
-                            ALX_RX2_UUID,
-                            ignoreCase = true
-                        )
-                    ) {
-
-                        rx2Characteristic =
-                            characteristic
-
-                        Log.d(
-                            TAG,
-                            "ALX RX2 found: ${characteristic.uuid}"
-                        )
-
-                        val cccd =
-                            characteristic.descriptors
-                                .firstOrNull {
-                                    it.uuid
-                                        .toString()
-                                        .equals(
-                                            CCCD_UUID,
-                                            ignoreCase = true
-                                        )
-                                }
-
-                        if (cccd != null) {
-
-                            Log.d(
-                                TAG,
-                                "ALX RX2 CCCD found: ${cccd.uuid}"
-                            )
-
-                        } else {
-
-                            Log.w(
-                                TAG,
-                                "ALX RX2 CCCD NOT FOUND"
-                            )
-                        }
-                    }
-                }
-
-                // -------------------------------------------------------------
-                // CAPTURE DISCOVERED REFERENCES
-                // -------------------------------------------------------------
-
-                val tx =
-                    txCharacteristic
-
-                val rx =
-                    rxCharacteristic
-
-                val rx2 =
-                    rx2Characteristic
-
-                Log.d(
-                    TAG,
-                    "================================================"
-                )
-
-                Log.d(
-                    TAG,
-                    "ALX GATT DISCOVERY RESULT"
-                )
-
-                Log.d(
-                    TAG,
-                    "TX found : ${tx != null}"
-                )
-
-                Log.d(
-                    TAG,
-                    "RX found : ${rx != null}"
-                )
-
-                Log.d(
-                    TAG,
-                    "RX2 found: ${rx2 != null}"
-                )
-
-                Log.d(
-                    TAG,
-                    "================================================"
-                )
-
-                // -------------------------------------------------------------
-                // TX + RX ARE REQUIRED
-                // -------------------------------------------------------------
-
-                if (tx == null || rx == null) {
-
-                    failPendingConnection(
-                        ERROR_CONNECTION_FAILED,
-                        "Required ALX GATT characteristics not found"
-                    )
-
-                    return
-                }
-
-                // -------------------------------------------------------------
-                // SYNCHRONIZE GATT MODULE
-                //
-                // Actual signature:
-                //
-                //     AlxBleGattModule.setGatt(
-                //         gatt
-                //     )
-                //
-                // The GATT module stores the GATT instance.
-                // -------------------------------------------------------------
-
-                AlxBleGattModule.setGatt(
-                    gatt
-                )
-
-                Log.d(
-                    TAG,
-                    "AlxBleGattModule synchronized"
-                )
-
-                Log.d(
-                    TAG,
-                    "  GATT = ${gatt.device.address}"
-                )
-
-                Log.d(
-                    TAG,
-                    "  TX   = ${tx.uuid}"
-                )
-
-                Log.d(
-                    TAG,
-                    "  RX   = ${rx.uuid}"
-                )
-
-                Log.d(
-                    TAG,
-                    "  RX2  = ${rx2?.uuid ?: "<not found>"}"
-                )
-
-                // -------------------------------------------------------------
-                // SYNCHRONIZE TRANSPORT MODULE
-                //
-                // Actual signature:
-                //
-                //     AlxBleTransportModule.setGatt(
-                //         gatt,
-                //         tx,
-                //         rx,
-                //         rx2
-                //     )
-                //
-                // This is where the transport gets the characteristics it
-                // needs to perform writes and receive notifications.
-                // -------------------------------------------------------------
-
-                AlxBleTransportModule.setGatt(
-                    gatt,
-                    tx,
-                    rx,
-                    rx2
-                )
-
-                Log.d(
-                    TAG,
-                    "AlxBleTransportModule synchronized"
-                )
-
-                Log.d(
-                    TAG,
-                    "  GATT = ${gatt.device.address}"
-                )
-
-                Log.d(
-                    TAG,
-                    "  TX   = ${tx.uuid}"
-                )
-
-                Log.d(
-                    TAG,
-                    "  RX   = ${rx.uuid}"
-                )
-
-                Log.d(
-                    TAG,
-                    "  RX2  = ${rx2?.uuid ?: "<not found>"}"
-                )
-
-                // -------------------------------------------------------------
-                // EVERYTHING IS NOW READY.
-                //
-                // IMPORTANT:
-                //
-                // onGattReady() MUST happen AFTER both modules have their
-                // correct GATT state.
-                //
-                // This prevents the previous:
-                //
-                //     TX REJECTED: activeGatt == null
-                //
-                // problem.
-                // -------------------------------------------------------------
-
-                AlxBleProtocolModule.onGattReady()
-
-                Log.d(
-                    TAG,
-                    "================================================"
-                )
-
-                Log.d(
-                    TAG,
-                    "GATT TRANSPORT AVAILABLE"
-                )
-
-                Log.d(
-                    TAG,
-                    "GATT      : ${gatt.device.address}"
-                )
-
-                Log.d(
-                    TAG,
-                    "TX        : ${tx.uuid}"
-                )
-
-                Log.d(
-                    TAG,
-                    "RX        : ${rx.uuid}"
-                )
-
-                Log.d(
-                    TAG,
-                    "RX2       : ${rx2?.uuid ?: "<not found>"}"
-                )
-
-                Log.d(
-                    TAG,
-                    "Gatt      : READY"
-                )
-
-                Log.d(
-                    TAG,
-                    "Transport : READY"
-                )
-
-                Log.d(
-                    TAG,
-                    "Protocol  : READY"
-                )
-
-                Log.d(
-                    TAG,
-                    "================================================"
-                )
-
-                // -------------------------------------------------------------
-                // Notifications remain disabled.
-                //
-                // CCCD configuration is performed only when explicitly
-                // requested by the application/transport layer.
-                // -------------------------------------------------------------
-
-                Log.d(
-                    TAG,
-                    "RX notifications: NOT ENABLED"
-                )
-
-                Log.d(
-                    TAG,
-                    "CCCD write: WAITING FOR EXPLICIT REQUEST"
-                )
-
-                // -------------------------------------------------------------
-                // Resolve exactly once.
-                // -------------------------------------------------------------
-
-                resolvePendingConnection()
             }
-
-            // =================================================================
-            // CHARACTERISTIC READ - API < 33
-            // =================================================================
-
-            @Deprecated("Deprecated in API 33")
-            override fun onCharacteristicRead(
-                gatt: BluetoothGatt,
-                characteristic: BluetoothGattCharacteristic,
-                status: Int
-            ) {
-
-                @Suppress("DEPRECATION")
-                val value =
-                    characteristic.value
-                        ?: ByteArray(0)
-
-                Log.d(
-                    TAG,
-                    "Characteristic read: " +
-                        "${characteristic.uuid} " +
-                        "status=$status " +
-                        "length=${value.size}"
-                )
-
-                AlxBleTransportModule
-                    .onCharacteristicRead(
-                        gatt,
-                        characteristic,
-                        value,
-                        status
-                    )
-            }
-
-            // =================================================================
-            // CHARACTERISTIC READ - API 33+
-            // =================================================================
 
             override fun onCharacteristicRead(
                 gatt: BluetoothGatt,
@@ -1298,196 +1393,83 @@ class BluetoothConnectionModule(
                 status: Int
             ) {
 
+                if (
+                    activeGatt != null &&
+                    activeGatt !== gatt
+                ) {
+                    return
+                }
+
                 Log.d(
                     TAG,
-                    "Characteristic read: " +
+                    "onCharacteristicRead: " +
                         "${characteristic.uuid} " +
-                        "status=$status " +
-                        "length=${value.size}"
+                        "length=${value.size} " +
+                        "status=$status"
                 )
 
-                AlxBleTransportModule
-                    .onCharacteristicRead(
+                try {
+
+                    AlxBleTransportModule.onCharacteristicRead(
                         gatt,
                         characteristic,
                         value,
                         status
                     )
-            }
 
-            // =================================================================
-            // DESCRIPTOR WRITE
-            // =================================================================
+                } catch (e: Exception) {
 
-            override fun onDescriptorWrite(
-                gatt: BluetoothGatt,
-                descriptor: BluetoothGattDescriptor,
-                status: Int
-            ) {
-
-                val characteristic =
-                    descriptor.characteristic
-
-                val descriptorUuid =
-                    descriptor.uuid
-                        .toString()
-                        .lowercase()
-
-                val characteristicUuid =
-                    characteristic.uuid
-                        .toString()
-                        .lowercase()
-
-                val valueHex =
-                    descriptor.value
-                        ?.joinToString("") {
-                            "%02X".format(
-                                it.toInt() and 0xFF
-                            )
-                        }
-                        ?: "<null>"
-
-                val isAlxRx =
-                    characteristicUuid ==
-                        ALX_RX_UUID
-
-                val isAlxRx2 =
-                    characteristicUuid ==
-                        ALX_RX2_UUID
-
-                val isCccd =
-                    descriptorUuid ==
-                        CCCD_UUID
-
-                val success =
-                    status ==
-                        BluetoothGatt.GATT_SUCCESS
-
-                Log.d(
-                    TAG,
-                    "================================================"
-                )
-
-                Log.d(
-                    TAG,
-                    "DESCRIPTOR WRITE CALLBACK"
-                )
-
-                Log.d(
-                    TAG,
-                    "Device         : ${gatt.device.address}"
-                )
-
-                Log.d(
-                    TAG,
-                    "Descriptor     : ${descriptor.uuid}"
-                )
-
-                Log.d(
-                    TAG,
-                    "Characteristic : ${characteristic.uuid}"
-                )
-
-                Log.d(
-                    TAG,
-                    "Status         : $status"
-                )
-
-                Log.d(
-                    TAG,
-                    "Success        : $success"
-                )
-
-                Log.d(
-                    TAG,
-                    "CCCD           : $isCccd"
-                )
-
-                Log.d(
-                    TAG,
-                    "ALX RX         : $isAlxRx"
-                )
-
-                Log.d(
-                    TAG,
-                    "ALX RX2        : $isAlxRx2"
-                )
-
-                Log.d(
-                    TAG,
-                    "Value          : $valueHex"
-                )
-
-                Log.d(
-                    TAG,
-                    "================================================"
-                )
-
-                AlxBleTransportModule
-                    .onDescriptorWrite(
-                        gatt,
-                        descriptor,
-                        status
+                    Log.w(
+                        TAG,
+                        "AlxBleTransportModule.onCharacteristicRead() failed",
+                        e
                     )
-
-                if (
-                    gatt === activeGatt &&
-                    isCccd
-                ) {
-
-                    if (isAlxRx) {
-
-                        rxNotificationConfigured =
-                            success
-
-                        Log.d(
-                            TAG,
-                            "RX notification state = $success"
-                        )
-                    }
-
-                    if (isAlxRx2) {
-
-                        Log.d(
-                            TAG,
-                            "RX2 notification CCCD result = $success"
-                        )
-                    }
                 }
             }
 
-            // =================================================================
-            // CHARACTERISTIC CHANGED - API < 33
-            // =================================================================
-
-            @Deprecated("Deprecated in API 33")
-            override fun onCharacteristicChanged(
+            @Suppress("DEPRECATION")
+            override fun onCharacteristicRead(
                 gatt: BluetoothGatt,
-                characteristic: BluetoothGattCharacteristic
+                characteristic: BluetoothGattCharacteristic,
+                status: Int
             ) {
 
-                @Suppress("DEPRECATION")
+                if (
+                    activeGatt != null &&
+                    activeGatt !== gatt
+                ) {
+                    return
+                }
+
                 val value =
                     characteristic.value
                         ?: ByteArray(0)
 
                 Log.d(
                     TAG,
-                    "Notification received: " +
+                    "onCharacteristicRead(legacy): " +
                         "${characteristic.uuid} " +
-                        "length=${value.size}"
+                        "length=${value.size} " +
+                        "status=$status"
                 )
 
-                AlxBleTransportModule
-                    .onCharacteristicChanged(
-                        characteristic,
-                        value
-                    )
-            }
+                try {
 
-            // =================================================================
-            // CHARACTERISTIC CHANGED - API 33+
-            // =================================================================
+                    AlxBleTransportModule.onCharacteristicReadLegacy(
+                        gatt,
+                        characteristic,
+                        status
+                    )
+
+                } catch (e: Exception) {
+
+                    Log.w(
+                        TAG,
+                        "AlxBleTransportModule.onCharacteristicReadLegacy() failed",
+                        e
+                    )
+                }
+            }
 
             override fun onCharacteristicChanged(
                 gatt: BluetoothGatt,
@@ -1495,53 +1477,578 @@ class BluetoothConnectionModule(
                 value: ByteArray
             ) {
 
+                if (
+                    activeGatt != null &&
+                    activeGatt !== gatt
+                ) {
+                    return
+                }
+
                 Log.d(
                     TAG,
-                    "Notification received: " +
+                    "onCharacteristicChanged: " +
                         "${characteristic.uuid} " +
                         "length=${value.size}"
                 )
 
-                AlxBleTransportModule
-                    .onCharacteristicChanged(
+                try {
+
+                    AlxBleTransportModule.onCharacteristicChanged(
                         characteristic,
                         value
                     )
+
+                } catch (e: Exception) {
+
+                    Log.w(
+                        TAG,
+                        "AlxBleTransportModule.onCharacteristicChanged() failed",
+                        e
+                    )
+                }
+            }
+
+            @Suppress("DEPRECATION")
+            override fun onCharacteristicChanged(
+                gatt: BluetoothGatt,
+                characteristic: BluetoothGattCharacteristic
+            ) {
+
+                if (
+                    activeGatt != null &&
+                    activeGatt !== gatt
+                ) {
+                    return
+                }
+
+                val value =
+                    characteristic.value
+                        ?: ByteArray(0)
+
+                Log.d(
+                    TAG,
+                    "onCharacteristicChanged(legacy): " +
+                        "${characteristic.uuid} " +
+                        "length=${value.size}"
+                )
+
+                try {
+
+                    AlxBleTransportModule.onCharacteristicChanged(
+                        characteristic,
+                        value
+                    )
+
+                } catch (e: Exception) {
+
+                    Log.w(
+                        TAG,
+                        "AlxBleTransportModule.onCharacteristicChanged() " +
+                            "legacy failed",
+                        e
+                    )
+                }
+            }
+
+            override fun onCharacteristicWrite(
+                gatt: BluetoothGatt,
+                characteristic: BluetoothGattCharacteristic,
+                status: Int
+            ) {
+
+                if (
+                    activeGatt != null &&
+                    activeGatt !== gatt
+                ) {
+                    return
+                }
+
+                Log.d(
+                    TAG,
+                    "onCharacteristicWrite: " +
+                        "${characteristic.uuid} " +
+                        "status=$status " +
+                        "(${gattStatusName(status)})"
+                )
+
+                try {
+
+                    AlxBleTransportModule.onCharacteristicWrite(
+                        gatt,
+                        characteristic,
+                        status
+                    )
+
+                } catch (e: Exception) {
+
+                    Log.w(
+                        TAG,
+                        "AlxBleTransportModule.onCharacteristicWrite() failed",
+                        e
+                    )
+                }
+            }
+
+            override fun onDescriptorWrite(
+                gatt: BluetoothGatt,
+                descriptor: BluetoothGattDescriptor,
+                status: Int
+            ) {
+
+                if (
+                    activeGatt != null &&
+                    activeGatt !== gatt
+                ) {
+                    return
+                }
+
+                Log.d(
+                    TAG,
+                    "onDescriptorWrite: " +
+                        "characteristic=${descriptor.characteristic.uuid} " +
+                        "descriptor=${descriptor.uuid} " +
+                        "status=$status " +
+                        "(${gattStatusName(status)})"
+                )
+
+                try {
+
+                    AlxBleGattModule.onDescriptorWrite(
+                        gatt,
+                        descriptor,
+                        status
+                    )
+
+                } catch (e: Exception) {
+
+                    Log.w(
+                        TAG,
+                        "AlxBleGattModule.onDescriptorWrite() failed",
+                        e
+                    )
+                }
+
+                try {
+
+                    AlxBleTransportModule.onDescriptorWrite(
+                        gatt,
+                        descriptor,
+                        status
+                    )
+
+                } catch (e: Exception) {
+
+                    Log.w(
+                        TAG,
+                        "AlxBleTransportModule.onDescriptorWrite() failed",
+                        e
+                    )
+                }
             }
         }
 
-    // =========================================================================
-    // GATT STATE NAME
-    // =========================================================================
+    @SuppressLint("MissingPermission")
+    private fun emitConnected(
+        device: BluetoothDevice
+    ) {
 
-    private fun gattStateName(
-        state: Int
-    ): String {
+        val params =
+            Arguments
+                .createMap()
+                .apply {
 
-        return when (state) {
+                    putString(
+                        "address",
+                        device.address
+                    )
 
-            BluetoothProfile.STATE_CONNECTED ->
-                "CONNECTED"
+                    putString(
+                        "name",
+                        safeDeviceName(device)
+                    )
 
-            BluetoothProfile.STATE_CONNECTING ->
-                "CONNECTING"
+                    putBoolean(
+                        "bonded",
+                        try {
+                            device.bondState ==
+                                BluetoothDevice.BOND_BONDED
+                        } catch (_: Exception) {
+                            false
+                        }
+                    )
 
-            BluetoothProfile.STATE_DISCONNECTED ->
-                "DISCONNECTED"
+                    putBoolean(
+                        "gattReady",
+                        false
+                    )
+                }
 
-            BluetoothProfile.STATE_DISCONNECTING ->
-                "DISCONNECTING"
+        sendEvent(
+            EVENT_CONNECTED,
+            params
+        )
+    }
 
-            else ->
-                "UNKNOWN"
+    private fun emitDisconnected(
+        device: BluetoothDevice?,
+        status: Int
+    ) {
+
+        val params =
+            Arguments
+                .createMap()
+                .apply {
+
+                    putString(
+                        "address",
+                        device?.address
+                    )
+
+                    putString(
+                        "name",
+                        safeDeviceName(device)
+                    )
+
+                    putInt(
+                        "status",
+                        status
+                    )
+
+                    putString(
+                        "statusName",
+                        gattStatusName(status)
+                    )
+                }
+
+        sendEvent(
+            EVENT_DISCONNECTED,
+            params
+        )
+    }
+
+    private fun sendEvent(
+        eventName: String,
+        params: WritableMap
+    ) {
+
+        try {
+
+            if (
+                !reactContext.hasActiveCatalystInstance()
+            ) {
+                return
+            }
+
+            reactContext
+                .getJSModule(
+                    DeviceEventManagerModule
+                        .RCTDeviceEventEmitter::class.java
+                )
+                .emit(
+                    eventName,
+                    params
+                )
+
+        } catch (e: Exception) {
+
+            Log.w(
+                TAG,
+                "Could not emit event $eventName",
+                e
+            )
         }
     }
 
-    // =========================================================================
-    // BOND STATE NAME
-    // =========================================================================
+    @SuppressLint("MissingPermission")
+    @ReactMethod
+    fun disconnectBleDevice(
+        promise: Promise
+    ) {
+
+        Log.d(
+            TAG,
+            "disconnectBleDevice()"
+        )
+
+        unregisterPairingReceiver()
+
+        pairingInProgress = false
+        connectionInProgress = false
+        pairOnlyRequest = false
+
+        val pending = pendingPromise
+
+        pendingPromise = null
+        pendingDevice = null
+
+        val gatt = activeGatt
+
+        activeGatt = null
+        activeDevice = null
+
+        servicesDiscovered = false
+        rxNotificationConfigured = false
+
+        try {
+            AlxBleTransportModule.clearGatt()
+        } catch (_: Exception) {
+        }
+
+        try {
+            AlxBleGattModule.clearGatt()
+        } catch (_: Exception) {
+        }
+
+        if (gatt != null) {
+
+            try {
+                gatt.disconnect()
+            } catch (_: Exception) {
+            }
+
+            try {
+                gatt.close()
+            } catch (_: Exception) {
+            }
+        }
+
+        pending?.reject(
+            ERROR_CONNECTION_FAILED,
+            "Bluetooth connection cancelled"
+        )
+
+        promise.resolve(true)
+    }
 
     @SuppressLint("MissingPermission")
+    @ReactMethod
+    fun getConnectionState(
+        promise: Promise
+    ) {
+
+        val device = activeDevice
+        val gatt = activeGatt
+
+        val bondState =
+            try {
+                device?.bondState
+                    ?: BluetoothDevice.BOND_NONE
+            } catch (_: Exception) {
+                BluetoothDevice.BOND_NONE
+            }
+
+        val bonded =
+            bondState ==
+                BluetoothDevice.BOND_BONDED
+
+        val ready =
+            gatt != null &&
+                servicesDiscovered &&
+                rxNotificationConfigured
+
+        val result =
+            Arguments
+                .createMap()
+                .apply {
+
+                    putBoolean(
+                        "connected",
+                        ready
+                    )
+
+                    putBoolean(
+                        "gattConnected",
+                        gatt != null
+                    )
+
+                    putBoolean(
+                        "servicesDiscovered",
+                        servicesDiscovered
+                    )
+
+                    putBoolean(
+                        "notificationsConfigured",
+                        rxNotificationConfigured
+                    )
+
+                    putBoolean(
+                        "gattReady",
+                        ready
+                    )
+
+                    putBoolean(
+                        "pairing",
+                        pairingInProgress
+                    )
+
+                    putBoolean(
+                        "connectionInProgress",
+                        connectionInProgress
+                    )
+
+                    putBoolean(
+                        "bonded",
+                        bonded
+                    )
+
+                    putBoolean(
+                        "paired",
+                        bonded
+                    )
+
+                    putString(
+                        "bondState",
+                        bondStateName(bondState)
+                    )
+
+                    putString(
+                        "address",
+                        device?.address
+                    )
+
+                    putString(
+                        "name",
+                        safeDeviceName(device)
+                    )
+                }
+
+        promise.resolve(result)
+    }
+
+    @ReactMethod
+    fun isBluetoothEnabled(
+        promise: Promise
+    ) {
+
+        val enabled =
+            try {
+                bluetoothAdapter?.isEnabled == true
+            } catch (_: Exception) {
+                false
+            }
+
+        promise.resolve(enabled)
+    }
+
+    @SuppressLint("MissingPermission")
+    @ReactMethod
+    fun isDeviceBonded(
+        address: String,
+        promise: Promise
+    ) {
+
+        val adapter = bluetoothAdapter
+
+        if (adapter == null) {
+
+            promise.resolve(false)
+            return
+        }
+
+        val device =
+            try {
+                adapter.getRemoteDevice(address)
+            } catch (_: Exception) {
+                promise.resolve(false)
+                return
+            }
+
+        promise.resolve(
+            device.bondState ==
+                BluetoothDevice.BOND_BONDED
+        )
+    }
+
+    @SuppressLint("MissingPermission")
+    @ReactMethod
+    fun pairBleDevice(
+        address: String,
+        password: String?,
+        promise: Promise
+    ) {
+
+        if (connectionInProgress) {
+
+            promise.reject(
+                ERROR_CONNECTION_IN_PROGRESS,
+                "Bluetooth connection already in progress"
+            )
+
+            return
+        }
+
+        val adapter = bluetoothAdapter
+
+        if (adapter == null) {
+
+            promise.reject(
+                ERROR_BLUETOOTH_DISABLED,
+                "Bluetooth adapter unavailable"
+            )
+
+            return
+        }
+
+        if (!adapter.isEnabled) {
+
+            promise.reject(
+                ERROR_BLUETOOTH_DISABLED,
+                "Bluetooth is disabled"
+            )
+
+            return
+        }
+
+        val device =
+            try {
+                adapter.getRemoteDevice(address)
+            } catch (e: Exception) {
+
+                promise.reject(
+                    ERROR_DEVICE_NOT_FOUND,
+                    "Invalid Bluetooth address",
+                    e
+                )
+
+                return
+            }
+
+        pendingPairingPin =
+            if (password.isNullOrBlank()) {
+                DEFAULT_PAIRING_PIN
+            } else {
+                password
+            }
+
+        pendingDevice = device
+        pendingPromise = promise
+
+        pairingInProgress = true
+        connectionInProgress = true
+        pairOnlyRequest = true
+
+        if (
+            device.bondState ==
+            BluetoothDevice.BOND_BONDED
+        ) {
+
+            pairingInProgress = false
+            connectionInProgress = false
+            pairOnlyRequest = false
+
+            pendingPromise = null
+            pendingDevice = null
+
+            promise.resolve(true)
+
+            return
+        }
+
+        registerPairingReceiver()
+
+        createBond(device)
+    }
+
     private fun bondStateName(
         state: Int
     ): String {
@@ -1562,134 +2069,70 @@ class BluetoothConnectionModule(
         }
     }
 
-    // =========================================================================
-    // RESOLVE CONNECTION
-    // =========================================================================
+    private fun gattStatusName(
+        status: Int
+    ): String {
 
-    private fun resolvePendingConnection() {
+        return when (status) {
 
-        val promise =
-            pendingPromise
+            BluetoothGatt.GATT_SUCCESS ->
+                "GATT_SUCCESS"
 
-        pendingPromise = null
-        pendingDevice = null
-        connectionInProgress = false
+            0x01 ->
+                "GATT_INVALID_HANDLE"
 
-        if (promise == null) {
+            0x02 ->
+                "GATT_READ_NOT_PERMITTED"
 
-            Log.w(
-                TAG,
-                "resolvePendingConnection(): no pending promise"
-            )
+            0x03 ->
+                "GATT_WRITE_NOT_PERMITTED"
 
-            return
+            0x04 ->
+                "GATT_INVALID_PDU"
+
+            0x05 ->
+                "GATT_INSUFFICIENT_AUTHENTICATION"
+
+            0x06 ->
+                "GATT_REQUEST_NOT_SUPPORTED"
+
+            0x07 ->
+                "GATT_INVALID_OFFSET"
+
+            0x08 ->
+                "GATT_INSUFFICIENT_AUTHORIZATION"
+
+            0x09 ->
+                "GATT_PREPARE_Q_FULL"
+
+            0x0A ->
+                "GATT_NOT_FOUND"
+
+            0x0B ->
+                "GATT_NOT_LONG"
+
+            0x0C ->
+                "GATT_INSUFFICIENT_KEY_SIZE"
+
+            0x0D ->
+                "GATT_INVALID_ATTRIBUTE_LENGTH"
+
+            0x0E ->
+                "GATT_ERR_UNLIKELY"
+
+            0x0F ->
+                "GATT_INSUFFICIENT_ENCRYPTION"
+
+            0x10 ->
+                "GATT_UNSUPPORTED_GRP_TYPE"
+
+            0x11 ->
+                "GATT_UNKNOWN_ERROR"
+
+            else ->
+                "UNKNOWN_GATT_STATUS"
         }
-
-        val device =
-            activeDevice
-
-        val result =
-            Arguments.createMap().apply {
-
-                putBoolean(
-                    "connected",
-                    true
-                )
-
-                putBoolean(
-                    "paired",
-                    false
-                )
-
-                putBoolean(
-                    "bonded",
-                    false
-                )
-
-                putBoolean(
-                    "servicesDiscovered",
-                    servicesDiscovered
-                )
-
-                putBoolean(
-                    "rxNotificationConfigured",
-                    rxNotificationConfigured
-                )
-
-                putBoolean(
-                    "protocolReady",
-                    servicesDiscovered
-                )
-
-                device?.let {
-
-                    putString(
-                        "address",
-                        it.address
-                    )
-
-                    putString(
-                        "name",
-                        it.name
-                    )
-
-                    putString(
-                        "bondState",
-                        bondStateName(
-                            it.bondState
-                        )
-                    )
-                }
-            }
-
-        Log.d(
-            TAG,
-            "================================================"
-        )
-
-        Log.d(
-            TAG,
-            "BLE GATT CONNECTION SUCCESSFUL"
-        )
-
-        Log.d(
-            TAG,
-            "Direct GATT connection complete"
-        )
-
-        Log.d(
-            TAG,
-            "Pairing/bonding was NOT required"
-        )
-
-        Log.d(
-            TAG,
-            "GATT services discovered"
-        )
-
-        Log.d(
-            TAG,
-            "RX notifications NOT enabled automatically"
-        )
-
-        Log.d(
-            TAG,
-            "Connection is GATT-READY"
-        )
-
-        Log.d(
-            TAG,
-            "================================================"
-        )
-
-        promise.resolve(
-            result
-        )
     }
-
-    // =========================================================================
-    // FAIL CONNECTION
-    // =========================================================================
 
     private fun failPendingConnection(
         code: String,
@@ -1698,45 +2141,19 @@ class BluetoothConnectionModule(
 
         Log.e(
             TAG,
-            "================================================"
+            "$code: $message"
         )
 
-        Log.e(
-            TAG,
-            "BLE CONNECTION FAILED"
-        )
+        unregisterPairingReceiver()
 
-        Log.e(
-            TAG,
-            "code=$code"
-        )
+        pairingInProgress = false
+        connectionInProgress = false
+        pairOnlyRequest = false
 
-        Log.e(
-            TAG,
-            "message=$message"
-        )
-
-        Log.e(
-            TAG,
-            "servicesDiscovered=$servicesDiscovered"
-        )
-
-        Log.e(
-            TAG,
-            "rxNotificationConfigured=$rxNotificationConfigured"
-        )
-
-        Log.e(
-            TAG,
-            "================================================"
-        )
-
-        val promise =
-            pendingPromise
+        val promise = pendingPromise
 
         pendingPromise = null
         pendingDevice = null
-        connectionInProgress = false
 
         promise?.reject(
             code,
@@ -1744,252 +2161,87 @@ class BluetoothConnectionModule(
         )
     }
 
-    // =========================================================================
-    // DISCONNECT
-    // =========================================================================
+    override fun invalidate() {
 
-    @SuppressLint("MissingPermission")
-    @ReactMethod
-    fun disconnectBleDevice(
-        promise: Promise
-    ) {
+        Log.d(
+            TAG,
+            "BluetoothConnectionModule.invalidate()"
+        )
+
+        unregisterPairingReceiver()
+
+        pairingInProgress = false
+        connectionInProgress = false
+        pairOnlyRequest = false
+
+        pendingPromise = null
+        pendingDevice = null
+
+        val gatt = activeGatt
+
+        activeGatt = null
+        activeDevice = null
+
+        servicesDiscovered = false
+        rxNotificationConfigured = false
 
         try {
-
-            Log.d(
-                TAG,
-                "Disconnect requested"
-            )
-
-            val gatt =
-                activeGatt
-
             AlxBleTransportModule.clearGatt()
-            AlxBleGattModule.clearGatt()
-
-            activeGatt = null
-            activeDevice = null
-
-            servicesDiscovered = false
-            rxNotificationConfigured = false
-
-            txCharacteristic = null
-            rxCharacteristic = null
-            rx2Characteristic = null
-
-            if (gatt != null) {
-
-                try {
-                    gatt.disconnect()
-                } catch (_: Exception) {
-                }
-
-                try {
-                    gatt.close()
-                } catch (_: Exception) {
-                }
-            }
-
-            connectionInProgress = false
-
-            pendingPromise = null
-            pendingDevice = null
-
-            emitSimpleEvent(
-                EVENT_DISCONNECTED
-            )
-
-            promise.resolve(
-                true
-            )
-
-        } catch (e: Exception) {
-
-            promise.reject(
-                "BLUETOOTH_DISCONNECT_FAILED",
-                e.message
-                    ?: "Failed to disconnect"
-            )
+        } catch (_: Exception) {
         }
-    }
 
-    // =========================================================================
-    // CONNECTION STATE
-    // =========================================================================
+        try {
+            AlxBleGattModule.clearGatt()
+        } catch (_: Exception) {
+        }
 
-    @SuppressLint("MissingPermission")
-    @ReactMethod
-    fun getConnectionState(
-        promise: Promise
-    ) {
+        if (gatt != null) {
 
-        val gatt =
-            activeGatt
-
-        val device =
-            activeDevice
-
-        val result =
-            Arguments.createMap().apply {
-
-                putBoolean(
-                    "connected",
-                    gatt != null
-                )
-
-                putBoolean(
-                    "connecting",
-                    connectionInProgress
-                )
-
-                putBoolean(
-                    "servicesDiscovered",
-                    servicesDiscovered
-                )
-
-                putBoolean(
-                    "rxNotificationConfigured",
-                    rxNotificationConfigured
-                )
-
-                putBoolean(
-                    "protocolReady",
-                    gatt != null &&
-                        servicesDiscovered
-                )
-
-                putBoolean(
-                    "paired",
-                    device?.bondState ==
-                        BluetoothDevice.BOND_BONDED
-                )
-
-                putBoolean(
-                    "bonded",
-                    device?.bondState ==
-                        BluetoothDevice.BOND_BONDED
-                )
-
-                if (device != null) {
-
-                    putString(
-                        "address",
-                        device.address
-                    )
-
-                    putString(
-                        "name",
-                        device.name
-                    )
-
-                    putString(
-                        "bondState",
-                        bondStateName(
-                            device.bondState
-                        )
-
-                    )
-
-                } else {
-
-                    putString(
-                        "bondState",
-                        "BOND_NONE"
-                    )
-                }
+            try {
+                gatt.disconnect()
+            } catch (_: Exception) {
             }
 
-        promise.resolve(
-            result
-        )
-    }
+            try {
+                gatt.close()
+            } catch (_: Exception) {
+            }
+        }
 
-    // =========================================================================
-    // RN EVENT LISTENERS
-    // =========================================================================
+        instance = null
+
+        super.invalidate()
+    }
 
     @ReactMethod
     fun addListener(
         eventName: String
     ) {
-        // Required by NativeEventEmitter.
     }
 
     @ReactMethod
     fun removeListeners(
         count: Int
     ) {
-        // Required by NativeEventEmitter.
     }
-
-    // =========================================================================
-    // CLEANUP
-    // =========================================================================
-
-    override fun invalidate() {
-
-        Log.d(
-            TAG,
-            "invalidate()"
-        )
-
-        try {
-
-            activeGatt?.let { gatt ->
-
-                try {
-                    gatt.disconnect()
-                } catch (_: Exception) {
-                }
-
-                try {
-                    gatt.close()
-                } catch (_: Exception) {
-                }
-            }
-
-        } catch (_: Exception) {
-        }
-
-        activeGatt = null
-        activeDevice = null
-
-        pendingPromise = null
-        pendingDevice = null
-
-        connectionInProgress = false
-        servicesDiscovered = false
-        rxNotificationConfigured = false
-
-        txCharacteristic = null
-        rxCharacteristic = null
-        rx2Characteristic = null
-
-        AlxBleTransportModule.clearGatt()
-        AlxBleGattModule.clearGatt()
-
-        super.invalidate()
-    }
-
-    // =========================================================================
-    // INIT
-    // =========================================================================
 
     init {
 
+        instance = this
+
+        Log.d(TAG, "========================================")
         Log.d(
             TAG,
             "BluetoothConnectionModule initialized"
         )
-
         Log.d(
             TAG,
-            "ALX connection mode: DIRECT GATT / NO PAIRING"
+            "ALX connection mode: BLE PAIRING + GATT"
         )
-
         Log.d(
             TAG,
-            "RX CCCD mode: EXPLICIT / MANUAL"
+            "Default SMP pairing PIN: $DEFAULT_PAIRING_PIN"
         )
+        Log.d(TAG, "========================================")
     }
 }

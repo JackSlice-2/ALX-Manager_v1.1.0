@@ -53,7 +53,8 @@
       "react-native-wifi-reborn",
       "./plugins/add-background-launch-permission.js",
       "expo-font",
-      "expo-web-browser"
+      "expo-web-browser",
+      "react-native-ble-plx"
     ],
     "experiments": {
       "typedRoutes": true,

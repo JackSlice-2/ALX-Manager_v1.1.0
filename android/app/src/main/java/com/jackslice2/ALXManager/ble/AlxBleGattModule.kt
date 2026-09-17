@@ -4,7 +4,6 @@ import android.bluetooth.BluetoothGatt
 import android.bluetooth.BluetoothGattCharacteristic
 import android.bluetooth.BluetoothGattDescriptor
 import android.bluetooth.BluetoothGattService
-import android.os.Build
 import android.util.Log
 
 import com.facebook.react.bridge.Arguments
@@ -23,11 +22,12 @@ class AlxBleGattModule(
 
         private const val TAG = "AlxBleGatt"
 
-        private const val EVENT_GATT_READY = "AlxBleGattReady"
+        private const val EVENT_GATT_READY =
+            "AlxBleGattReady"
 
-        // ---------------------------------------------------------------------
+        // =====================================================================
         // ALX GATT UUIDs
-        // ---------------------------------------------------------------------
+        // =====================================================================
 
         const val SERVICE_UUID =
             "12345678-1234-5678-1234-56789abcdef7"
@@ -44,27 +44,32 @@ class AlxBleGattModule(
         const val CCCD_UUID =
             "00002902-0000-1000-8000-00805f9b34fb"
 
-        private val NOTIFY_VALUE =
-            BluetoothGattDescriptor.ENABLE_NOTIFICATION_VALUE
-
         private var instance: AlxBleGattModule? = null
 
         private var activeGatt: BluetoothGatt? = null
 
         private var alxService: BluetoothGattService? = null
 
-        private var txCharacteristic: BluetoothGattCharacteristic? = null
-        private var rxCharacteristic: BluetoothGattCharacteristic? = null
-        private var rx2Characteristic: BluetoothGattCharacteristic? = null
+        private var txCharacteristic:
+            BluetoothGattCharacteristic? = null
+
+        private var rxCharacteristic:
+            BluetoothGattCharacteristic? = null
+
+        private var rx2Characteristic:
+            BluetoothGattCharacteristic? = null
 
         private var rxNotificationsEnabled = false
+
         private var rx2NotificationsEnabled = false
 
         // ---------------------------------------------------------------------
-        // Static access used by BluetoothConnectionModule
+        // Static access
         // ---------------------------------------------------------------------
 
-        fun setGatt(gatt: BluetoothGatt) {
+        fun setGatt(
+            gatt: BluetoothGatt
+        ) {
 
             activeGatt = gatt
 
@@ -87,8 +92,6 @@ class AlxBleGattModule(
             rxNotificationsEnabled = false
             rx2NotificationsEnabled = false
 
-            AlxBleTransportModule.clearGatt()
-
             Log.d(
                 TAG,
                 "GATT state cleared"
@@ -99,13 +102,81 @@ class AlxBleGattModule(
             gatt: BluetoothGatt
         ) {
 
+            if (
+                activeGatt != null &&
+                activeGatt !== gatt
+            ) {
+
+                Log.w(
+                    TAG,
+                    "Ignoring services callback from stale GATT: " +
+                        gatt.device.address
+                )
+
+                return
+            }
+
             activeGatt = gatt
 
-            instance?.handleServicesDiscovered(gatt)
-                ?: Log.e(
+            val module = instance
+
+            if (module == null) {
+
+                Log.e(
                     TAG,
                     "AlxBleGattModule instance is null"
                 )
+
+                return
+            }
+
+            module.handleServicesDiscovered(
+                gatt
+            )
+        }
+
+        // ---------------------------------------------------------------------
+        // Descriptor callback bridge
+        //
+        // BluetoothConnectionModule owns BluetoothGattCallback.
+        // ---------------------------------------------------------------------
+
+        fun onDescriptorWrite(
+            gatt: BluetoothGatt,
+            descriptor: BluetoothGattDescriptor,
+            status: Int
+        ) {
+
+            if (
+                activeGatt != null &&
+                activeGatt !== gatt
+            ) {
+
+                Log.w(
+                    TAG,
+                    "Ignoring descriptor callback from stale GATT"
+                )
+
+                return
+            }
+
+            val module = instance
+
+            if (module == null) {
+
+                Log.e(
+                    TAG,
+                    "AlxBleGattModule instance is null"
+                )
+
+                return
+            }
+
+            module.handleDescriptorWrite(
+                gatt,
+                descriptor,
+                status
+            )
         }
 
         fun getTxCharacteristic():
@@ -132,22 +203,31 @@ class AlxBleGattModule(
             return activeGatt
         }
 
-        fun isRxNotificationsEnabled(): Boolean {
+        fun isRxNotificationsEnabled():
+            Boolean {
+
             return rxNotificationsEnabled
         }
 
-        fun isRx2NotificationsEnabled(): Boolean {
+        fun isRx2NotificationsEnabled():
+            Boolean {
+
             return rx2NotificationsEnabled
         }
     }
 
+    // =========================================================================
+    // MODULE
+    // =========================================================================
+
     override fun getName(): String {
+
         return "AlxBleGatt"
     }
 
-    // -------------------------------------------------------------------------
+    // =========================================================================
     // EVENTS
-    // -------------------------------------------------------------------------
+    // =========================================================================
 
     private fun emitEvent(
         eventName: String,
@@ -155,6 +235,18 @@ class AlxBleGattModule(
     ) {
 
         try {
+
+            if (
+                !reactContext.hasActiveCatalystInstance()
+            ) {
+
+                Log.d(
+                    TAG,
+                    "Cannot emit $eventName: Catalyst inactive"
+                )
+
+                return
+            }
 
             reactContext
                 .getJSModule(
@@ -176,53 +268,71 @@ class AlxBleGattModule(
         }
     }
 
+    // =========================================================================
+    // GATT READY EVENT
+    // =========================================================================
+
     private fun emitGattReady() {
 
         val tx = txCharacteristic
         val rx = rxCharacteristic
         val rx2 = rx2Characteristic
 
-        val event = Arguments.createMap().apply {
+        val event =
+            Arguments
+                .createMap()
+                .apply {
 
-            putString(
-                "service",
-                alxService?.uuid?.toString()
-            )
+                    putString(
+                        "service",
+                        alxService
+                            ?.uuid
+                            ?.toString()
+                    )
 
-            putString(
-                "tx",
-                tx?.uuid?.toString()
-            )
+                    putString(
+                        "tx",
+                        tx
+                            ?.uuid
+                            ?.toString()
+                    )
 
-            putString(
-                "rx",
-                rx?.uuid?.toString()
-            )
+                    putString(
+                        "rx",
+                        rx
+                            ?.uuid
+                            ?.toString()
+                    )
 
-            if (rx2 != null) {
-                putString(
-                    "rx2",
-                    rx2.uuid.toString()
-                )
-            } else {
-                putNull("rx2")
-            }
+                    if (rx2 != null) {
 
-            putBoolean(
-                "rx2Available",
-                rx2 != null
-            )
+                        putString(
+                            "rx2",
+                            rx2.uuid.toString()
+                        )
 
-            putBoolean(
-                "rxNotificationsEnabled",
-                rxNotificationsEnabled
-            )
+                    } else {
 
-            putBoolean(
-                "rx2NotificationsEnabled",
-                rx2NotificationsEnabled
-            )
-        }
+                        putNull(
+                            "rx2"
+                        )
+                    }
+
+                    putBoolean(
+                        "rx2Available",
+                        rx2 != null
+                    )
+
+                    putBoolean(
+                        "rxNotificationsEnabled",
+                        rxNotificationsEnabled
+                    )
+
+                    putBoolean(
+                        "rx2NotificationsEnabled",
+                        rx2NotificationsEnabled
+                    )
+                }
 
         emitEvent(
             EVENT_GATT_READY,
@@ -230,13 +340,26 @@ class AlxBleGattModule(
         )
     }
 
-    // -------------------------------------------------------------------------
+    // =========================================================================
     // SERVICE DISCOVERY
-    // -------------------------------------------------------------------------
+    // =========================================================================
 
     private fun handleServicesDiscovered(
         gatt: BluetoothGatt
     ) {
+
+        if (
+            activeGatt != null &&
+            activeGatt !== gatt
+        ) {
+
+            Log.w(
+                TAG,
+                "Ignoring services from stale GATT"
+            )
+
+            return
+        }
 
         activeGatt = gatt
 
@@ -271,7 +394,7 @@ class AlxBleGattModule(
         }
 
         // ---------------------------------------------------------------------
-        // Log every service and characteristic
+        // Log every service and characteristic.
         // ---------------------------------------------------------------------
 
         for (service in gatt.services) {
@@ -309,15 +432,18 @@ class AlxBleGattModule(
         }
 
         // ---------------------------------------------------------------------
-        // Find ALX service
+        // Find ALX service.
         // ---------------------------------------------------------------------
 
         val targetService =
             gatt.services.firstOrNull {
-                it.uuid.toString().equals(
-                    SERVICE_UUID,
-                    ignoreCase = true
-                )
+
+                it.uuid
+                    .toString()
+                    .equals(
+                        SERVICE_UUID,
+                        ignoreCase = true
+                    )
             }
 
         if (targetService == null) {
@@ -343,6 +469,7 @@ class AlxBleGattModule(
             )
 
             gatt.services.forEach {
+
                 Log.e(
                     TAG,
                     "  ${it.uuid}"
@@ -365,14 +492,27 @@ class AlxBleGattModule(
         )
     }
 
-    // -------------------------------------------------------------------------
+    // =========================================================================
     // CHARACTERISTIC DISCOVERY
-    // -------------------------------------------------------------------------
+    // =========================================================================
 
     private fun discoverCharacteristics(
         gatt: BluetoothGatt,
         service: BluetoothGattService
     ) {
+
+        if (
+            activeGatt != null &&
+            activeGatt !== gatt
+        ) {
+
+            Log.w(
+                TAG,
+                "Ignoring characteristic discovery from stale GATT"
+            )
+
+            return
+        }
 
         Log.d(
             TAG,
@@ -402,7 +542,9 @@ class AlxBleGattModule(
             Log.d(
                 TAG,
                 "  Properties: ${
-                    propertiesToString(properties)
+                    propertiesToString(
+                        properties
+                    )
                 }"
             )
 
@@ -453,10 +595,13 @@ class AlxBleGattModule(
         }
 
         // ---------------------------------------------------------------------
-        // Required TX
+        // Required TX.
         // ---------------------------------------------------------------------
 
-        if (txCharacteristic == null) {
+        val tx =
+            txCharacteristic
+
+        if (tx == null) {
 
             Log.e(
                 TAG,
@@ -470,10 +615,13 @@ class AlxBleGattModule(
         }
 
         // ---------------------------------------------------------------------
-        // Required RX
+        // Required RX.
         // ---------------------------------------------------------------------
 
-        if (rxCharacteristic == null) {
+        val rx =
+            rxCharacteristic
+
+        if (rx == null) {
 
             Log.e(
                 TAG,
@@ -487,8 +635,8 @@ class AlxBleGattModule(
         }
 
         if (
-            txCharacteristic == null ||
-            rxCharacteristic == null
+            tx == null ||
+            rx == null
         ) {
 
             Log.e(
@@ -500,22 +648,21 @@ class AlxBleGattModule(
         }
 
         // ---------------------------------------------------------------------
-        // Validate TX properties
-        //
-        // The C# tester defaults to WriteWithResponse and only uses
-        // WriteWithoutResponse when appropriate.
+        // TX properties.
         // ---------------------------------------------------------------------
 
         val txProperties =
-            txCharacteristic!!.properties
+            tx.properties
 
         val canWrite =
             txProperties and
-                BluetoothGattCharacteristic.PROPERTY_WRITE != 0
+                BluetoothGattCharacteristic
+                    .PROPERTY_WRITE != 0
 
         val canWriteWithoutResponse =
             txProperties and
-                BluetoothGattCharacteristic.PROPERTY_WRITE_NO_RESPONSE != 0
+                BluetoothGattCharacteristic
+                    .PROPERTY_WRITE_NO_RESPONSE != 0
 
         Log.d(
             TAG,
@@ -532,20 +679,35 @@ class AlxBleGattModule(
             "  WRITE_NO_RESPONSE: $canWriteWithoutResponse"
         )
 
+        if (
+            !canWrite &&
+            !canWriteWithoutResponse
+        ) {
+
+            Log.e(
+                TAG,
+                "TX has no supported write property"
+            )
+
+            return
+        }
+
         // ---------------------------------------------------------------------
-        // Validate RX notification support
+        // RX properties.
         // ---------------------------------------------------------------------
 
         val rxProperties =
-            rxCharacteristic!!.properties
+            rx.properties
 
         val canNotify =
             rxProperties and
-                BluetoothGattCharacteristic.PROPERTY_NOTIFY != 0
+                BluetoothGattCharacteristic
+                    .PROPERTY_NOTIFY != 0
 
         val canIndicate =
             rxProperties and
-                BluetoothGattCharacteristic.PROPERTY_INDICATE != 0
+                BluetoothGattCharacteristic
+                    .PROPERTY_INDICATE != 0
 
         Log.d(
             TAG,
@@ -562,7 +724,10 @@ class AlxBleGattModule(
             "  INDICATE: $canIndicate"
         )
 
-        if (!canNotify && !canIndicate) {
+        if (
+            !canNotify &&
+            !canIndicate
+        ) {
 
             Log.e(
                 TAG,
@@ -573,10 +738,15 @@ class AlxBleGattModule(
         }
 
         // ---------------------------------------------------------------------
-        // Optional RX2
+        // Optional RX2.
+        //
+        // C# only enables RX, so RX2 remains disabled.
         // ---------------------------------------------------------------------
 
-        if (rx2Characteristic != null) {
+        val rx2 =
+            rx2Characteristic
+
+        if (rx2 != null) {
 
             Log.d(
                 TAG,
@@ -585,7 +755,17 @@ class AlxBleGattModule(
 
             Log.d(
                 TAG,
-                "  ${rx2Characteristic!!.uuid}"
+                "  ${rx2.uuid}"
+            )
+
+            Log.d(
+                TAG,
+                "  Properties: ${
+                    propertiesToString(
+                        rx2.properties
+                    )
+                }"
+
             )
 
         } else {
@@ -597,17 +777,16 @@ class AlxBleGattModule(
         }
 
         // ---------------------------------------------------------------------
-        // Give resolved GATT state to transport BEFORE enabling notifications.
+        // Configure transport BEFORE CCCD.
         //
-        // This is important because notification callbacks can arrive
-        // immediately after the CCCD write succeeds.
+        // A notification can arrive immediately after CCCD succeeds.
         // ---------------------------------------------------------------------
 
         AlxBleTransportModule.setGatt(
             gatt,
-            txCharacteristic,
-            rxCharacteristic,
-            rx2Characteristic
+            tx,
+            rx,
+            rx2
         )
 
         Log.d(
@@ -618,11 +797,8 @@ class AlxBleGattModule(
         // ---------------------------------------------------------------------
         // Enable RX notifications.
         //
-        // This corresponds to the C# tester:
-        //
-        // WriteClientCharacteristicConfigurationDescriptorAsync(
-        //     GattClientCharacteristicConfigurationDescriptorValue.Notify
-        // )
+        // C# tester enables RX only.
+        // RX2 is optional and is NOT automatically enabled.
         // ---------------------------------------------------------------------
 
         enableRxNotifications(
@@ -630,15 +806,16 @@ class AlxBleGattModule(
         )
     }
 
-    // -------------------------------------------------------------------------
+    // =========================================================================
     // ENABLE RX NOTIFICATIONS
-    // -------------------------------------------------------------------------
+    // =========================================================================
 
     private fun enableRxNotifications(
         gatt: BluetoothGatt
     ) {
 
-        val rx = rxCharacteristic
+        val rx =
+            rxCharacteristic
 
         if (rx == null) {
 
@@ -650,9 +827,34 @@ class AlxBleGattModule(
             return
         }
 
+        if (activeGatt !== gatt) {
+
+            Log.e(
+                TAG,
+                "Cannot enable RX notifications: stale GATT"
+            )
+
+            return
+        }
+
+        val canNotify =
+            rx.properties and
+                BluetoothGattCharacteristic
+                    .PROPERTY_NOTIFY != 0
+
+        val canIndicate =
+            rx.properties and
+                BluetoothGattCharacteristic
+                    .PROPERTY_INDICATE != 0
+
         Log.d(
             TAG,
-            "Enabling RX notifications..."
+            "=================================================="
+        )
+
+        Log.d(
+            TAG,
+            "Enabling RX notifications"
         )
 
         Log.d(
@@ -660,8 +862,18 @@ class AlxBleGattModule(
             "RX: ${rx.uuid}"
         )
 
+        Log.d(
+            TAG,
+            "RX NOTIFY=$canNotify"
+        )
+
+        Log.d(
+            TAG,
+            "RX INDICATE=$canIndicate"
+        )
+
         // ---------------------------------------------------------------------
-        // First enable local notification delivery.
+        // Local Android notification delivery.
         // ---------------------------------------------------------------------
 
         val localResult =
@@ -708,7 +920,9 @@ class AlxBleGattModule(
                 "RX descriptors:"
             )
 
-            logDescriptors(rx)
+            logDescriptors(
+                rx
+            )
 
             return
         }
@@ -719,14 +933,56 @@ class AlxBleGattModule(
         )
 
         // ---------------------------------------------------------------------
-        // Write ENABLE_NOTIFICATION_VALUE.
+        // Choose the correct CCCD value.
+        //
+        // Prefer NOTIFY because this is what the C# implementation uses.
+        // Fall back to INDICATE only if NOTIFY is unavailable.
         // ---------------------------------------------------------------------
 
+        val cccdValue =
+            when {
+
+                canNotify ->
+                    BluetoothGattDescriptor
+                        .ENABLE_NOTIFICATION_VALUE
+
+                canIndicate ->
+                    BluetoothGattDescriptor
+                        .ENABLE_INDICATION_VALUE
+
+                else ->
+                    null
+            }
+
+        if (cccdValue == null) {
+
+            Log.e(
+                TAG,
+                "RX cannot use notification or indication"
+            )
+
+            return
+        }
+
         cccd.value =
-            BluetoothGattDescriptor.ENABLE_NOTIFICATION_VALUE
+            cccdValue
+
+        Log.d(
+            TAG,
+            "CCCD mode: ${
+                if (canNotify) {
+                    "NOTIFY"
+                } else {
+                    "INDICATE"
+                }
+            }"
+        )
 
         @Suppress("DEPRECATION")
-        val writeStarted = gatt.writeDescriptor(cccd)
+        val writeStarted =
+            gatt.writeDescriptor(
+                cccd
+            )
 
         Log.d(
             TAG,
@@ -740,46 +996,110 @@ class AlxBleGattModule(
                 "Failed to start RX CCCD write"
             )
 
+            Log.e(
+                TAG,
+                "Possible causes:"
+            )
+
+            Log.e(
+                TAG,
+                "  - GATT operation already in progress"
+            )
+
+            Log.e(
+                TAG,
+                "  - peripheral rejected the operation"
+            )
+
+            Log.e(
+                TAG,
+                "  - link security/encryption requirement"
+            )
+
             return
         }
 
         Log.d(
             TAG,
-            "Waiting for RX CCCD write callback..."
+            "RX CCCD write started successfully"
+        )
+
+        Log.d(
+            TAG,
+            "Waiting for onDescriptorWrite callback..."
         )
     }
 
-    // -------------------------------------------------------------------------
+    // =========================================================================
     // DESCRIPTOR WRITE RESULT
-    //
-    // BluetoothConnectionModule forwards descriptor callbacks here through
-    // AlxBleTransportModule. This method can also be called directly by
-    // transport if desired.
-    // -------------------------------------------------------------------------
+    // =========================================================================
 
-    fun onDescriptorWrite(
+    private fun handleDescriptorWrite(
         gatt: BluetoothGatt,
         descriptor: BluetoothGattDescriptor,
         status: Int
     ) {
 
-        if (
-            !descriptor.uuid.toString().equals(
-                CCCD_UUID,
-                ignoreCase = true
+        // ---------------------------------------------------------------------
+        // Make sure this callback belongs to our active GATT.
+        // ---------------------------------------------------------------------
+
+        if (activeGatt !== gatt) {
+
+            Log.w(
+                TAG,
+                "Ignoring descriptor callback from stale GATT"
             )
-        ) {
+
             return
         }
 
+        // ---------------------------------------------------------------------
+        // Only care about CCCD.
+        // ---------------------------------------------------------------------
+
         if (
-            !descriptor.characteristic.uuid.toString().equals(
-                RX_UUID,
-                ignoreCase = true
-            )
+            !descriptor.uuid
+                .toString()
+                .equals(
+                    CCCD_UUID,
+                    ignoreCase = true
+                )
         ) {
+
+            Log.d(
+                TAG,
+                "Ignoring non-CCCD descriptor: ${descriptor.uuid}"
+            )
+
             return
         }
+
+        // ---------------------------------------------------------------------
+        // Only care about RX CCCD.
+        // ---------------------------------------------------------------------
+
+        if (
+            !descriptor.characteristic.uuid
+                .toString()
+                .equals(
+                    RX_UUID,
+                    ignoreCase = true
+                )
+        ) {
+
+            Log.d(
+                TAG,
+                "Ignoring CCCD for characteristic: " +
+                    descriptor.characteristic.uuid
+            )
+
+            return
+        }
+
+        // ---------------------------------------------------------------------
+        // CCCD write failed.
+        // ---------------------------------------------------------------------
 
         if (
             status != BluetoothGatt.GATT_SUCCESS
@@ -787,13 +1107,43 @@ class AlxBleGattModule(
 
             Log.e(
                 TAG,
-                "RX CCCD write FAILED: status=$status"
+                "=================================================="
+            )
+
+            Log.e(
+                TAG,
+                "RX CCCD WRITE FAILED"
+            )
+
+            Log.e(
+                TAG,
+                "status=$status"
+            )
+
+            Log.e(
+                TAG,
+                "statusName=${gattStatusToString(status)}"
+            )
+
+            Log.e(
+                TAG,
+                "RX notifications remain disabled"
+            )
+
+            Log.e(
+                TAG,
+                "=================================================="
             )
 
             return
         }
 
-        rxNotificationsEnabled = true
+        // ---------------------------------------------------------------------
+        // CCCD write succeeded.
+        // ---------------------------------------------------------------------
+
+        rxNotificationsEnabled =
+            true
 
         Log.d(
             TAG,
@@ -817,15 +1167,74 @@ class AlxBleGattModule(
 
         Log.d(
             TAG,
-            "=================================================="
+            "CCCD status: GATT_SUCCESS"
         )
 
+        Log.d(
+            TAG,
+            "=================================================="
+
+        )
+
+        // ---------------------------------------------------------------------
+        // Notify JS/UI that GATT is fully ready.
+        // ---------------------------------------------------------------------
+
         emitGattReady()
+
+        // ---------------------------------------------------------------------
+        // Notify BluetoothConnectionModule.
+        //
+        // This is important:
+        //
+        // BluetoothConnectionModule owns the connection Promise.
+        // Physical GATT connection is NOT the same thing as a usable
+        // ALX connection.
+        //
+        // The connection becomes fully ready only after:
+        //
+        //   connect
+        //       ↓
+        //   service discovery
+        //       ↓
+        //   ALX characteristics found
+        //       ↓
+        //   RX CCCD written successfully
+        //       ↓
+        //   RX notifications enabled
+        //
+        // BluetoothConnectionModule.onGattReady() resolves the pending
+        // connection Promise at this point.
+        // ---------------------------------------------------------------------
+
+        Log.d(
+            TAG,
+            "Notifying BluetoothConnectionModule: GATT ready"
+        )
+
+        BluetoothConnectionModule.onGattReady()
+
+        // ---------------------------------------------------------------------
+        // Only now start the ALX protocol.
+        // ---------------------------------------------------------------------
+
+        Log.d(
+            TAG,
+            "GATT READY: RX notifications confirmed"
+        )
+
+        Log.d(
+            TAG,
+            "Starting ALX protocol"
+
+        )
+
+        AlxBleProtocolModule.onGattReady()
     }
 
-    // -------------------------------------------------------------------------
+    // =========================================================================
     // DESCRIPTORS
-    // -------------------------------------------------------------------------
+    // =========================================================================
 
     private fun logDescriptors(
         characteristic: BluetoothGattCharacteristic
@@ -853,9 +1262,9 @@ class AlxBleGattModule(
         }
     }
 
-    // -------------------------------------------------------------------------
+    // =========================================================================
     // PROPERTY LOGGING
-    // -------------------------------------------------------------------------
+    // =========================================================================
 
     private fun propertiesToString(
         properties: Int
@@ -866,51 +1275,79 @@ class AlxBleGattModule(
 
         if (
             properties and
-            BluetoothGattCharacteristic.PROPERTY_READ != 0
+            BluetoothGattCharacteristic
+                .PROPERTY_READ != 0
         ) {
-            result.add("READ")
+
+            result.add(
+                "READ"
+            )
         }
 
         if (
             properties and
-            BluetoothGattCharacteristic.PROPERTY_WRITE != 0
+            BluetoothGattCharacteristic
+                .PROPERTY_WRITE != 0
         ) {
-            result.add("WRITE")
+
+            result.add(
+                "WRITE"
+            )
         }
 
         if (
             properties and
-            BluetoothGattCharacteristic.PROPERTY_WRITE_NO_RESPONSE != 0
+            BluetoothGattCharacteristic
+                .PROPERTY_WRITE_NO_RESPONSE != 0
         ) {
-            result.add("WRITE_NO_RESPONSE")
+
+            result.add(
+                "WRITE_NO_RESPONSE"
+            )
         }
 
         if (
             properties and
-            BluetoothGattCharacteristic.PROPERTY_NOTIFY != 0
+            BluetoothGattCharacteristic
+                .PROPERTY_NOTIFY != 0
         ) {
-            result.add("NOTIFY")
+
+            result.add(
+                "NOTIFY"
+            )
         }
 
         if (
             properties and
-            BluetoothGattCharacteristic.PROPERTY_INDICATE != 0
+            BluetoothGattCharacteristic
+                .PROPERTY_INDICATE != 0
         ) {
-            result.add("INDICATE")
+
+            result.add(
+                "INDICATE"
+            )
         }
 
         if (
             properties and
-            BluetoothGattCharacteristic.PROPERTY_SIGNED_WRITE != 0
+            BluetoothGattCharacteristic
+                .PROPERTY_SIGNED_WRITE != 0
         ) {
-            result.add("SIGNED_WRITE")
+
+            result.add(
+                "SIGNED_WRITE"
+            )
         }
 
         if (
             properties and
-            BluetoothGattCharacteristic.PROPERTY_EXTENDED_PROPS != 0
+            BluetoothGattCharacteristic
+                .PROPERTY_EXTENDED_PROPS != 0
         ) {
-            result.add("EXTENDED_PROPS")
+
+            result.add(
+                "EXTENDED_PROPS"
+            )
         }
 
         return if (result.isEmpty()) {
@@ -920,93 +1357,187 @@ class AlxBleGattModule(
         }
     }
 
-    // -------------------------------------------------------------------------
+    // =========================================================================
+    // GATT STATUS LOGGING
+    // =========================================================================
+
+    private fun gattStatusToString(
+        status: Int
+    ): String {
+
+        return when (status) {
+
+            BluetoothGatt.GATT_SUCCESS ->
+                "GATT_SUCCESS"
+
+            0x01 ->
+                "GATT_INVALID_HANDLE"
+
+            0x02 ->
+                "GATT_READ_NOT_PERMITTED"
+
+            0x03 ->
+                "GATT_WRITE_NOT_PERMITTED"
+
+            0x04 ->
+                "GATT_INVALID_PDU"
+
+            0x05 ->
+                "GATT_INSUFFICIENT_AUTHENTICATION"
+
+            0x06 ->
+                "GATT_REQUEST_NOT_SUPPORTED"
+
+            0x07 ->
+                "GATT_INVALID_OFFSET"
+
+            0x08 ->
+                "GATT_INSUFFICIENT_AUTHORIZATION"
+
+            0x09 ->
+                "GATT_PREPARE_Q_FULL"
+
+            0x0A ->
+                "GATT_NOT_FOUND"
+
+            0x0B ->
+                "GATT_NOT_LONG"
+
+            0x0C ->
+                "GATT_INSUFFICIENT_KEY_SIZE"
+
+            0x0D ->
+                "GATT_INVALID_ATTRIBUTE_LENGTH"
+
+            0x0E ->
+                "GATT_ERR_UNLIKELY"
+
+            0x0F ->
+                "GATT_INSUFFICIENT_ENCRYPTION"
+
+            0x10 ->
+                "GATT_UNSUPPORTED_GRP_TYPE"
+
+            0x11 ->
+                "GATT_UNKNOWN_ERROR"
+
+            else ->
+                "UNKNOWN_GATT_STATUS"
+        }
+    }
+
+    // =========================================================================
     // JS STATE
-    // -------------------------------------------------------------------------
+    // =========================================================================
 
     @ReactMethod
     fun getGattState(
         promise: Promise
     ) {
 
-        val gatt = activeGatt
+        val gatt =
+            activeGatt
+
+        val gattReady =
+            gatt != null &&
+            alxService != null &&
+            txCharacteristic != null &&
+            rxCharacteristic != null &&
+            rxNotificationsEnabled
 
         val result =
-            Arguments.createMap().apply {
+            Arguments
+                .createMap()
+                .apply {
 
-                putBoolean(
-                    "connected",
-                    gatt != null
-                )
+                    // Physical GATT connection.
+                    putBoolean(
+                        "connected",
+                        gatt != null
+                    )
 
-                putBoolean(
-                    "serviceFound",
-                    alxService != null
-                )
+                    // Complete ALX GATT workflow.
+                    putBoolean(
+                        "gattReady",
+                        gattReady
+                    )
 
-                putBoolean(
-                    "txFound",
-                    txCharacteristic != null
-                )
+                    putBoolean(
+                        "serviceFound",
+                        alxService != null
+                    )
 
-                putBoolean(
-                    "rxFound",
-                    rxCharacteristic != null
-                )
+                    putBoolean(
+                        "txFound",
+                        txCharacteristic != null
+                    )
 
-                putBoolean(
-                    "rx2Found",
-                    rx2Characteristic != null
-                )
+                    putBoolean(
+                        "rxFound",
+                        rxCharacteristic != null
+                    )
 
-                putBoolean(
-                    "rxNotificationsEnabled",
-                    rxNotificationsEnabled
-                )
+                    putBoolean(
+                        "rx2Found",
+                        rx2Characteristic != null
+                    )
 
-                putBoolean(
-                    "rx2NotificationsEnabled",
-                    rx2NotificationsEnabled
-                )
+                    putBoolean(
+                        "rxNotificationsEnabled",
+                        rxNotificationsEnabled
+                    )
 
-                putString(
-                    "service",
-                    alxService?.uuid?.toString()
-                )
-
-                putString(
-                    "tx",
-                    txCharacteristic?.uuid?.toString()
-                )
-
-                putString(
-                    "rx",
-                    rxCharacteristic?.uuid?.toString()
-                )
-
-                if (rx2Characteristic != null) {
+                    putBoolean(
+                        "rx2NotificationsEnabled",
+                        rx2NotificationsEnabled
+                    )
 
                     putString(
-                        "rx2",
-                        rx2Characteristic?.uuid?.toString()
+                        "service",
+                        alxService
+                            ?.uuid
+                            ?.toString()
                     )
 
-                } else {
-
-                    putNull(
-                        "rx2"
+                    putString(
+                        "tx",
+                        txCharacteristic
+                            ?.uuid
+                            ?.toString()
                     )
+
+                    putString(
+                        "rx",
+                        rxCharacteristic
+                            ?.uuid
+                            ?.toString()
+                    )
+
+                    if (rx2Characteristic != null) {
+
+                        putString(
+                            "rx2",
+                            rx2Characteristic
+                                ?.uuid
+                                ?.toString()
+                        )
+
+                    } else {
+
+                        putNull(
+                            "rx2"
+                        )
+                    }
                 }
-            }
 
         promise.resolve(
             result
         )
     }
 
-    // -------------------------------------------------------------------------
+    // =========================================================================
     // RN EVENT LISTENERS
-    // -------------------------------------------------------------------------
+    // =========================================================================
 
     @ReactMethod
     fun addListener(
@@ -1022,9 +1553,9 @@ class AlxBleGattModule(
         // Required by NativeEventEmitter.
     }
 
-    // -------------------------------------------------------------------------
+    // =========================================================================
     // CLEANUP
-    // -------------------------------------------------------------------------
+    // =========================================================================
 
     override fun invalidate() {
 
@@ -1039,6 +1570,10 @@ class AlxBleGattModule(
 
         super.invalidate()
     }
+
+    // =========================================================================
+    // INIT
+    // =========================================================================
 
     init {
 

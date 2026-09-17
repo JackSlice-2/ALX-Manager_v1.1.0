@@ -126,7 +126,7 @@ const DataRegistry: React.FC<DataRegistryProps> = ({
       subsections: [
         {
           id: 'normal-memoria',
-          title: 'Registro em Memória',
+          title: 'Registro em Memória ',
           fields: [
             {
               id: 'normal-memoria-hab',
@@ -224,7 +224,7 @@ const DataRegistry: React.FC<DataRegistryProps> = ({
           title: 'Habilitar Alimentação Externa',
         },
         {
-          id: 'alarme-cel-apn',
+          id: 'alarme-cel-apn1',
           type: 'input',
           key: 'cel_apn',
           title: t.DataRegistrySettings.text0,
@@ -325,7 +325,7 @@ const DataRegistry: React.FC<DataRegistryProps> = ({
       title: 'Alarme Entrada Analógica 1',
       fields: [
         {
-          id: 'alarme-cel-hab',
+          id: 'alarme-cel-hab1',
           type: 'switch',
           key: 'cel_hab',
           title: 'Habilitar',
@@ -338,7 +338,7 @@ const DataRegistry: React.FC<DataRegistryProps> = ({
           placeholder: 'APN',
         },
         {
-          id: 'alarme-cel-apn',
+          id: 'alarme-cel',
           type: 'input',
           key: 'cel_apn',
           title: t.DataRegistrySettings.text3,
@@ -354,20 +354,20 @@ const DataRegistry: React.FC<DataRegistryProps> = ({
       title: 'Alarme Entrada Analógica 2',
       fields: [
         {
-          id: 'alarme-cel-hab',
+          id: 'alarme-cel-hab2',
           type: 'switch',
           key: 'cel_hab',
           title: 'Habilitar',
         },
         {
-          id: 'alarme-cel-apn',
+          id: 'alarme-cel-apn2',
           type: 'input',
           key: 'cel_apn',
           title: t.DataRegistrySettings.text2,
           placeholder: 'APN',
         },
         {
-          id: 'alarme-cel-apn',
+          id: 'alarme-cel',
           type: 'input',
           key: 'cel_apn',
           title: t.DataRegistrySettings.text3,
@@ -384,19 +384,19 @@ const DataRegistry: React.FC<DataRegistryProps> = ({
       title: 'Alarme Entrada Digital 1',
       fields: [
         {
-          id: 'alarme-cel-hab',
+          id: 'alarme-cel-hab3',
           type: 'switch',
           key: 'cel_hab',
           title: 'Habilitar',
         },
         {
-          id: 'alarme-cel-hab',
+          id: 'alarme-cel-hab4',
           type: 'switch',
           key: 'cel_hab',
           title: 'Interromper Hibernação',
         },
         {
-          id: 'alarme-cel-hab',
+          id: 'alarme-cel-hab5',
           type: 'switch',
           key: 'cel_hab',
           title: 'Status para Alarme [ON/OFF]',
@@ -412,19 +412,19 @@ const DataRegistry: React.FC<DataRegistryProps> = ({
       title: 'Alarme Entrada Digital 2',
       fields: [
         {
-          id: 'alarme-cel-hab',
+          id: 'alarme-cel-hab6',
           type: 'switch',
           key: 'cel_hab',
           title: 'Habilitar',
         },
         {
-          id: 'alarme-cel-hab',
+          id: 'alarme-cel-hab7',
           type: 'switch',
           key: 'cel_hab',
           title: 'Interromper Hibernação',
         },
         {
-          id: 'alarme-cel-hab',
+          id: 'alarme-cel-hab8',
           type: 'switch',
           key: 'cel_hab',
           title: 'Status para Alarme [ON/OFF]',
