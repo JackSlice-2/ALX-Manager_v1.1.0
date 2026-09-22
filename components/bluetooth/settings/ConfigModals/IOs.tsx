@@ -1,6 +1,6 @@
 import { Picker } from '@react-native-picker/picker';
 import React, { useEffect, useState } from 'react';
-import { Alert, StyleSheet, View } from 'react-native';
+import { Alert, StyleSheet, TextInput, View } from 'react-native';
 import ModalContainer from '@/components/utils/modalParts/ModalContainer';
 import SaveButton from '@/components/utils/modalParts/SaveButton';
 import RobotoText from '@/components/RobotoText';
@@ -21,6 +21,8 @@ const IOs: React.FC<MQTTProps> = ({ onClose, iosData, iosPubData }) => {
 
   const [isAI1, setIsAI1] = useState<number | null>(null);
   const [isAI2, setIsAI2] = useState<number | null>(null);
+  const [isValueAI1, setIsValueAI1] = useState('');
+  
 
   const [postPayload, setPostPayload] = useState<any>(null);
   const [postEndpoint, setPostEndpoint] = useState('');
@@ -82,18 +84,15 @@ useEffect(() => {
         image={require('@/assets/images/icons8-control-250.png')}
         data={iosData}
       >
-          {postPayload &&
-                                  <View style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: "80%", zIndex: 999 }}>
-                                  <LoaderOverlay visible={postPayload} />
-                                </View>
-                                }
+        
         <View style={styles.inputGroup}>
+
           <View style={styles.inputGroup}>
             <RobotoText style={styles.inputTitle}>
-              {t.IOsSettings.text0}
+              Entradas Analógicas 1
             </RobotoText>
-            
-            <RobotoText style={styles.inputLabel}>AI 1</RobotoText>
+          <View style={{flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between'}}>
+            <RobotoText style={styles.inputLabel}>Operação</RobotoText>
             <Picker
               selectedValue={isAI1}
               onValueChange={(v) => setIsAI1(Number(v))}
@@ -105,11 +104,45 @@ useEffect(() => {
             </Picker>
           </View>
 
-          <View style={styles.inputGroup}>
-            <RobotoText style={styles.inputLabel}>AI 2</RobotoText>
+
+<View style={{flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between'}}>
+            <RobotoText style={styles.inputLabel}>Escala Inicial</RobotoText>
+            <View style={{ flexDirection: 'row', gap: 10 }}>
+              <TextInput
+                style={[styles.input, styles.flexGrow]}
+                value={isValueAI1}
+                onChangeText={setIsValueAI1}
+                placeholderTextColor="#cbd5e0"
+                editable={true}
+              />
+            </View>
+          </View>
+
+
+<View style={{flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between'}}>
+            <RobotoText style={styles.inputLabel}>Escala Final</RobotoText>
+            <View style={{ flexDirection: 'row', gap: 10 }}>
+              <TextInput
+                style={[styles.input, styles.flexGrow]}
+                value={isValueAI1}
+                onChangeText={setIsValueAI1}
+                placeholderTextColor="#cbd5e0"
+                editable={true}
+              />
+            </View>
+          </View>
+          </View>
+
+
+                   <View style={styles.inputGroup}>
+            <RobotoText style={styles.inputTitle}>
+              Entradas Analógicas 2
+            </RobotoText>
+          <View style={{flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between'}}>
+            <RobotoText style={styles.inputLabel}>Operação</RobotoText>
             <Picker
-              selectedValue={isAI2}
-              onValueChange={(v) => setIsAI2(Number(v))}
+              selectedValue={isAI1}
+              onValueChange={(v) => setIsAI1(Number(v))}
               style={[styles.input, styles.flexGrow, { color: '#333', padding: 0 }]}
               dropdownIconColor="#333"
             >
@@ -118,43 +151,44 @@ useEffect(() => {
             </Picker>
           </View>
 
-          <SaveButton 
-            isSaveDisabled={isSaveDisabled || isPosting} 
-            onPress={handleSave} 
-            text={isPosting ? t.System.Saving : t.System.Save} 
+          <View style={{flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between'}}>
+            <RobotoText style={styles.inputLabel}>Escala Inicial</RobotoText>
+            <View style={{ flexDirection: 'row', gap: 10 }}>
+              <TextInput
+                style={[styles.input, styles.flexGrow]}
+                value={isValueAI1}
+                onChangeText={setIsValueAI1}
+                placeholderTextColor="#cbd5e0"
+                editable={true}
+              />
+            </View>
+          </View>
+
+
+<View style={{flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between'}}>
+            <RobotoText style={styles.inputLabel}>Escala Final</RobotoText>
+            <View style={{ flexDirection: 'row', gap: 10 }}>
+              <TextInput
+                style={[styles.input, styles.flexGrow]}
+                value={isValueAI1}
+                onChangeText={setIsValueAI1}
+                placeholderTextColor="#cbd5e0"
+                editable={true}
+              />
+            </View>
+          </View>
+               <SaveButton
+            isSaveDisabled={isSaveDisabled || isPosting}
+            onPress={handleSave}
+            text={isPosting ? t.System.Saving : t.System.Save}
           />
+          </View>
+
         </View>
 
-        <BrokerDataPublication 
-            onClose={() => onClose()} 
-            iosData={iosData} 
-            iosPubData={iosPubData}
-        />
+        
       </ModalContainer>
 
-      {postPayload && postEndpoint && (
-        <IOSPostSender
-          endpoint={postEndpoint}
-          payload={postPayload}
-          onSuccess={() => {
-                     Alert.alert(
-                       "Sucesso",
-                       "Dados salvos corretamente no gateway"
-                     );
-                     setPostPayload(null);
-                     onClose()
-                   }}
-                   onError={(err) => {
-                     Alert.alert(
-                       "Falha",
-                       "Nã foi possivel salvar os dados no gateway"
-                     );
-                     alert("Erro ao salvar!");
-                     console.log(err);
-                     setPostPayload(null);
-                   }}
-        />
-      )}
     </>
   );
 };
@@ -174,6 +208,7 @@ const styles = StyleSheet.create({
     color: '#333',
     fontSize: 14,
     marginBottom: 8,
+    width: '30%',
   },
   inputTitle: {
     color: '#333',
@@ -189,6 +224,7 @@ const styles = StyleSheet.create({
     minHeight: 50,
     borderWidth: 0,
     fontSize: 16,
+    width: '50%',
   },
   flexGrow: {
     flex: 1,

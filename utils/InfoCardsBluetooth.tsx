@@ -1,10 +1,8 @@
 import { Image, StyleSheet } from "react-native";
 import Battery from "../components/dashboard/Battery";
 import IconButton from "../components/dashboard/IconButton";
-import SignalBars from "../components/dashboard/SignalBars";
 import useGetInfo from "./getEvery5Seconds";
 import React, { useEffect } from "react";
-import { rssiToLevel } from "@/components/utils/types";
 import { useT } from "@/hooks/useT";
 
 export const useInfoCards = () => {
@@ -68,22 +66,27 @@ export const useInfoCards = () => {
     {
       icon: <Image source={require('../assets/images/memory.png')} style={styles.iconImage} />,
       label: t.StatusPage.text5Bluetooth,
-      value: datalogger.info.sts_spiffs,
+      value: 'D8:13:2A:B6:50:70',
     },
     {
       icon: <Image source={require('../assets/images/memory.png')} style={styles.iconImage} />,
       label: t.StatusPage.text6Bluetooth,
-      value: datalogger.info.sts_eeprom,
+      value: '3,34V',
+    },
+    {
+      icon: <Image source={require('../assets/images/memory.png')} style={styles.iconImage} />,
+      label: t.StatusPage.text4Bluetooth,
+      value: <Battery level={datalogger.info.uso_por_cento} />,
     },
     {
       icon: <Image source={require('../assets/images/GPS.png')} style={styles.iconImage} />,
       label: t.StatusPage.text7Bluetooth,
-      value: datalogger.info.sts_gnss,
+      value: new Date().toLocaleString(),
     },
     {
       icon: <Image source={require('../assets/images/GPS.png')} style={styles.iconImage} />,
       label: t.StatusPage.text8Bluetooth,
-      value: datalogger.info.sts_gnss,
+      value: new Date(Date.now() - 24 * 60 * 60 * 900).toLocaleString(),
     },
   ];
   return infoCards;

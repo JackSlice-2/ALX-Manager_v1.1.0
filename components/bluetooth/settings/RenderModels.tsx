@@ -13,6 +13,8 @@ import LoaderOverlay from '@/components/LoaderOverlay';
 import { RenderBluetoothModalsProps } from '@/components/utils/types';
 import { useT } from '@/hooks/useT';
 import DataRegistry from './ConfigModals/DataRegistry';
+import I2cModal from './ConfigModals/I2cModal';
+import GeneralModal from './ConfigModals/GeneralModal'
 
 export default function RenderModals({
   selectedOption,
@@ -31,7 +33,9 @@ export default function RenderModals({
   RTC,
   RTCConfig,
   RegisterData,
-  RegisterConfigData
+  RegisterConfigData,
+  I2c,
+  General,
 }: RenderBluetoothModalsProps) {
 
   const t = useT()
@@ -86,6 +90,11 @@ export default function RenderModals({
         return <LoaderOverlay visible message={t.Settings.text5} />;
       return <Drivers onClose={onClose} drivers={drivers} />;
 
+    case t.SettingsOptions.i2c:
+      if (!drivers)
+        return <LoaderOverlay visible message={t.Settings.text5} />;
+      return <I2cModal onClose={onClose} drivers={drivers} />;
+
     case t.SettingsOptions.Serial:
       if (!serialData)
         return <LoaderOverlay visible message={t.Settings.text6} />;
@@ -111,6 +120,11 @@ export default function RenderModals({
           mobileConfigData={RegisterConfigData}
         />
       );
+
+    case t.SettingsOptions.General:
+      if (!datalogger)
+        return <LoaderOverlay visible message={t.Settings.text1} />;
+      return <GeneralModal onClose={onClose} datalogger={datalogger} />; 
 
     case t.SettingsOptions.Commands:
       if (!commandsData)

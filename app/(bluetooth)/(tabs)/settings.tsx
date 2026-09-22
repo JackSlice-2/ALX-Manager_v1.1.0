@@ -28,6 +28,8 @@ export default function Settings() {
     drivers,
     serial,
     commands,
+    I2c,
+    General
   } = useAllSettingsData();
 
   const t = useT()
@@ -41,14 +43,16 @@ export default function Settings() {
 
   const optionReadyMap: Record<string, boolean> = {
     [t.SettingsOptions.RTC]: !!RTC.info,
-    [t.SettingsOptions.Register]: !!RegisterData.info && !!RegisterConfigData.info,
     [t.SettingsOptions.Mobile]: !!mobile.info && !!mobileConfig.info,
     [t.SettingsOptions.GPS]: !!gps.info && !!datalogger.info,
     [t.SettingsOptions.MQTT]: !!mqtt.info && !!mqttConfig.info,
     [t.SettingsOptions.Drivers]: !!drivers.info,
+    [t.SettingsOptions.i2c]: !!drivers.info,
     [t.SettingsOptions.Serial]: !!serial.info,
     [t.SettingsOptions.IOs]: !!ios.info && !!iosPub.info,
     [t.SettingsOptions.Updates]: !!datalogger.info,
+    [t.SettingsOptions.Register]: !!RegisterData.info && !!RegisterConfigData.info,
+    [t.SettingsOptions.General]: !!gps.info && !!datalogger.info,
     [t.SettingsOptions.Commands]: !!commands.info,
     [t.SettingsOptions.Password]: true,
   };
@@ -116,6 +120,8 @@ export default function Settings() {
         iosPubData={iosPub.info ?? undefined}
 
         drivers={drivers.info ?? undefined}
+        I2c={drivers.info ?? undefined}
+        General={drivers.info ?? undefined}
         serialData={serial.info ?? undefined}
         commandsData={commands.info ?? undefined}
       />

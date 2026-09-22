@@ -151,22 +151,22 @@ const handleSave = () => {
               onValueChange={handleToggleChange}
               style={{ transform: [{ scaleX: 1.1 }, { scaleY: 1.1 }], width: 50, height: 30 }}
             />
-<RobotoText>
-  {isMQTTEnabled ? t.System.Enabled : t.System.Disabled}
-</RobotoText>
+            <RobotoText>
+              Auto-Ajuste
+            </RobotoText>
           </View>
         </View>
 
         {/* RCT Inputs */}
         <View style={styles.inputGroup}>
         {[
-          { label: t.MQTTSettings.text1, value: isHost, setter: setIsHost },
+          { label: 'Data/Hora', value: isHost, setter: setIsHost },
         ].map((input, idx) => (
           <View key={idx} style={styles.inputGroup}>
             <RobotoText style={styles.inputLabel}>{input.label}</RobotoText>
             <TextInput
               style={[styles.input, styles.flexGrow]}
-              value={input.value}
+              value={'09/09/2026 13:45:23'}
               onChangeText={input.setter}
               placeholderTextColor="#cbd5e0"
             />
@@ -177,15 +177,25 @@ const handleSave = () => {
 
         {/* Picker */}
         <View style={styles.inputGroup}>
+            <RobotoText style={styles.inputLabel}>GMT</RobotoText>
           <Picker
             selectedValue={isQOS}
             onValueChange={(v) => setIsQOS(v)}
             style={[styles.input, styles.flexGrow, { color: '#333', padding: 0 }]}
             dropdownIconColor="#333"
           >
-            <Picker.Item label="0" value="0" />
-            <Picker.Item label="1" value="1" />
-            <Picker.Item label="2" value="2" />
+            {Array.from({ length: 27 }, (_, i) => {
+              const offset = i - 12;
+              const value = offset.toString();
+
+              return (
+                <Picker.Item
+                  key={value}
+                  label={`${offset >= 0 ? '+' : ''}${offset}`}
+                  value={value}
+                />
+              );
+            })}
           </Picker>
         </View>
 

@@ -22,6 +22,8 @@ export default function useAllSettingsData() {
   const drivers = useGetInfo('/req_info_drivers');
   const serial = useGetInfo('/req_info_config_RS232_RS485');
   const commands = useGetInfo('/req_info_ios');
+  const I2c = useGetInfo('/req_info_drivers');
+  const General = useGetInfo('/req_info_drivers');
 
   const all = [
     RTC,
@@ -39,6 +41,8 @@ export default function useAllSettingsData() {
     drivers,
     serial,
     commands,
+    I2c,
+    General
   ];
 
   const isFetching = all.some(d => d.isFetching);
@@ -68,5 +72,7 @@ export default function useAllSettingsData() {
     drivers,
     serial,
     commands,
+    I2c,
+    General
   };
 }

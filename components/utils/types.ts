@@ -190,6 +190,9 @@ export interface RenderBluetoothModalsProps {
   iosPubData: IOSPubData;
   mobileConfigData: MobileConfigData
   mqttConfigData: MqttConfigData
+
+  I2c: Driver[];
+  General: Driver[];
 }
 
 export interface MqttConfigData {

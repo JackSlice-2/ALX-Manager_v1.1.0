@@ -164,11 +164,14 @@ const handleSave = () => {
           <LoaderOverlay visible={postPayload} />
         </View>
         }
+        
 
       <View style={styles.inputGroup}>
         <RobotoText style={styles.inputTitle}>
           {t.IOsSettings.text1}
         </RobotoText>
+
+        
                   <View style={styles.inputGroup}>
             <RobotoText style={styles.inputLabel}>{t.IOsSettings.text2}</RobotoText>
             <View style={{ flexDirection: 'row', gap: 10 }}>
@@ -292,11 +295,7 @@ const handleSave = () => {
             </View>
           </View>
 
-     <SaveButton
-  isSaveDisabled={isSaveDisabled || isPosting}
-  onPress={handleSave}
-  text={isPosting ? t.System.Saving : t.System.Save}
-/>
+
       </View>
 
       {postPayload && postEndpoint && (
