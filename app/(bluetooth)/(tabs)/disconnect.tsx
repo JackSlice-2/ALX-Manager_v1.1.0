@@ -182,8 +182,8 @@ const isStillOnDeviceNetwork = async () => {
           {t.Disconnect.text1}
         </RobotoText>
         <RobotoText style={{ fontSize: 26, fontWeight: 'semibold' }}>
-          {datalogger.modelo}{"    "}
-          {datalogger.numero_serie}
+          ALX-4GSE{"    "}
+          00000111
         </RobotoText>
        
       </View>

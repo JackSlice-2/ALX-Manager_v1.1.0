@@ -129,18 +129,18 @@ useEffect(() => {
         <View style={[styles.inputGroup, { flexDirection: 'row' }]}>
           <View style={styles.singleInput}>
             <RobotoText style={styles.label}>{t.MobileSettings.text0}</RobotoText>
-            <RobotoText style={styles.sectionText}>{mobileData.cel_hab}</RobotoText>
+            <RobotoText style={styles.sectionText}>Habilitado</RobotoText>
           </View>
 
           <View style={styles.singleInput}>
             <RobotoText style={styles.label}>{t.MobileSettings.text1}</RobotoText>
-            <RobotoText style={styles.sectionText}>{mobileData.cel_tec}</RobotoText>
+            <RobotoText style={styles.sectionText}>{"FDD LTE"}</RobotoText>
           </View>
         </View>
 
         <View style={styles.inputGroup}>
           <RobotoText style={styles.label}>{t.MobileSettings.text2}</RobotoText>
-          <RobotoText style={styles.sectionText}>{mobileData.cel_iccid}</RobotoText>
+          <RobotoText style={styles.sectionText}>8985506821557000750688</RobotoText>
         </View>
       </View>
 
@@ -153,10 +153,10 @@ useEffect(() => {
                 false: 'rgba(200, 200, 200, 0.5)',
                 true: 'rgba(32, 62, 107, 0.66)'
               }}
-              value={isHab}
+              value={true}
               onValueChange={setIsHab}
             />
-            <RobotoText>{isHab ? t.System.Enabled : t.System.Disabled}</RobotoText>
+            <RobotoText>Habilitado</RobotoText>
           </View>
         </View>
 
@@ -164,7 +164,7 @@ useEffect(() => {
           <RobotoText style={styles.inputLabel}>{t.MobileSettings.text3}</RobotoText>
           <TextInput
             style={[styles.input, styles.flexGrow]}
-            value={isApn}
+            value={"inlog.vivo.com.br"}
             onChangeText={setIsApn}
           />
         </View>
@@ -173,7 +173,7 @@ useEffect(() => {
           <RobotoText style={styles.inputLabel}>{t.MobileSettings.text4}</RobotoText>
           <TextInput
             style={[styles.input, styles.flexGrow]}
-            value={isUser}
+            value={"datatem"}
             onChangeText={setIsUser}
           />
         </View>
@@ -184,7 +184,7 @@ useEffect(() => {
             <TextInput
               style={[styles.input, styles.flexGrow]}
               secureTextEntry={!showPassword}
-              value={isSenha}
+              value={"ALX-Mobile26"}
               onChangeText={setIsSenha}
             />
             <Pressable onPress={() => setShowPassword(!showPassword)} style={styles.togglePassword}>

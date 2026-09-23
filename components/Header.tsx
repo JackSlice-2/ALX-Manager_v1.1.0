@@ -90,12 +90,8 @@ const Header: React.FC<HeaderProps> = ({
 
     if (pathname === './index') return null
 
-    const getButtonColor = () => {
-        if (loading) return '#c7b02b' 
-        if (failedPings >= 3) return '#ff0000'
-        if (failedPings === 2) return '#ffcc00' 
-        if (failedPings === 1) return '#ffcc00'  
-        return pingOk ? '#00c500' : '#ff0000' 
+    const getButtonColor = () => { 
+        return '#00c500' 
     }
 
     return (
@@ -106,7 +102,7 @@ const Header: React.FC<HeaderProps> = ({
                         {t.Header.Model}
                     </RobotoText>
                     <RobotoText style={[styles.title, { color: titleTextColor }]}>
-                        {info?.modelo || '—'}
+                        ALX-4GSE
                     </RobotoText>
                 </View>
                 <View>
@@ -114,7 +110,7 @@ const Header: React.FC<HeaderProps> = ({
                         {t.Header.Serial}
                     </RobotoText>
                     <RobotoText style={[styles.title, { color: titleTextColor }]}>
-                        {info?.numero_serie || '—'}
+                        00000111
                     </RobotoText>
                 </View>
                 <View style={styles.button}>

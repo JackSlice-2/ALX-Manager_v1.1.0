@@ -59,11 +59,7 @@ export default function Dashboard() {
         showsHorizontalScrollIndicator={false}
         contentContainerStyle={styles.scrollContainer}
       >
-        {!hasInitialized.current ? (
-          <View style={{position: 'absolute', top: 50, left: 0, right: 0, bottom: 0, height: 200}}>
-            <LoaderOverlay visible message={t.System.LoadingInfo} />
-          </View>
-          ) : (
+    
             <>
               <ScreenOne
                 screenWidth={screenWidth}
@@ -80,8 +76,6 @@ export default function Dashboard() {
                 raw={raw}
               />
           </>
-         )
-        }
       </ScrollView>
     </PageContainer>
   );

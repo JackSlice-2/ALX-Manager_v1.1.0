@@ -104,12 +104,12 @@ const Drivers: React.FC<DriversProps> = ({ onClose, drivers: raw }) => {
                 <View style={[styles.inputGroup, { flexDirection: 'row' }]}>
                   <View style={[styles.singleInput,{width: '70%'}]}>
                     <RobotoText style={styles.label}>{t.DriverSettings.text1}</RobotoText>
-                    <RobotoText style={styles.sectionText}>{driver.driver}</RobotoText>
+                    <RobotoText style={styles.sectionText}>ig200.json</RobotoText>
                   </View>
 
                   <View style={styles.singleInputIP}>
                     <RobotoText style={styles.label}>{t.DriverSettings.text2}</RobotoText>
-                    <RobotoText style={styles.sectionText}>{driver.rev}</RobotoText>
+                    <RobotoText style={styles.sectionText}>3</RobotoText>
                   </View>
 
                   <View style={styles.singleInputIPLine}>
@@ -117,41 +117,22 @@ const Drivers: React.FC<DriversProps> = ({ onClose, drivers: raw }) => {
                 </View>
 
                 {/* Row 2 */}
-                <View style={[styles.inputGroup, { flexDirection: 'row' }]}>
-                  <View style={styles.singleInput}>
-                    <RobotoText style={styles.label}>{t.DriverSettings.text3}</RobotoText>
-                    <RobotoText style={styles.sectionText}>
-                  {driver.rtu === true && "RTU"}
-                  {driver.tcp  === true && driver.rtu === true && "/"}
-                  {driver.tcp === true && "TCP"}
-                  </RobotoText>                                 
-                  </View>
-
-                  <View style={styles.singleInputIP}>
-                <RobotoText style={styles.label}>{t.DriverSettings.text4}</RobotoText>
-                <RobotoText style={styles.IPsectionText}>{driver.ip || '-'}</RobotoText>
-              </View>
-
-              <View style={styles.singleInputIPLine}>
-                <RobotoText style={styles.label}>{t.DriverSettings.text5}</RobotoText>
-                <RobotoText style={styles.sectionText}>{driver.port}</RobotoText>
-              </View>
-            </View>
+        
 
             <View style={[styles.inputGroup, { flexDirection: 'row' }]}>
               <View style={styles.singleInput}>
                 <RobotoText style={styles.label}>{t.DriverSettings.text6}</RobotoText>
-                <RobotoText style={styles.sectionText}>{driver.end}</RobotoText>
+                <RobotoText style={styles.sectionText}>1</RobotoText>
               </View>
 
               <View style={styles.singleInputIP}>
                 <RobotoText style={styles.label}>{t.DriverSettings.text7}</RobotoText>
-                <RobotoText style={styles.sectionText}>{driver.tmout}</RobotoText>
+                <RobotoText style={styles.sectionText}>1000</RobotoText>
               </View>
 
                   <View style={styles.singleInputIPLine}>
                     <RobotoText style={styles.label}>{t.DriverSettings.text8}</RobotoText>
-                    <RobotoText style={styles.sectionText}>{driver.erro}</RobotoText>
+                    <RobotoText style={styles.sectionText}>0</RobotoText>
                   </View>
                 </View>
               </View>

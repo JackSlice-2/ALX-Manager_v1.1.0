@@ -44,7 +44,7 @@ const ScreenTwo: React.FC<ScreenTwoProps> = ({
                 <RobotoText style={styles.label}>
                   {t.StatusPage2.text1}
                 </RobotoText>
-                <RobotoText style={styles.sectionText}>{status}</RobotoText>
+                <RobotoText style={styles.sectionText}>OK</RobotoText>
               </View>
             </View>
             <View style={[styles.inputGroup, {flexDirection: 'row'}]}>
@@ -52,35 +52,35 @@ const ScreenTwo: React.FC<ScreenTwoProps> = ({
                 <RobotoText style={styles.label}>
                   {t.StatusPage2.text2}
                 </RobotoText>
-                <RobotoText style={styles.sectionText}>{datalogger.modelo}</RobotoText>
+                <RobotoText style={styles.sectionText}>ALX-4GSE</RobotoText>
               </View>
               <View style={styles.singleInput}>
                 <RobotoText style={styles.label}>
                   {t.StatusPage2.text3}
                 </RobotoText>
-                <RobotoText style={styles.sectionText}>{datalogger.versao_firmware}</RobotoText>
+                <RobotoText style={styles.sectionText}>0.0.5</RobotoText>
               </View>
               <View style={styles.singleInput}>
                 <RobotoText style={styles.label}>
                   {t.StatusPage2.text4}
                 </RobotoText>
-                <RobotoText style={styles.sectionText}>{config.endereco_modbus}</RobotoText>
+                <RobotoText style={styles.sectionText}>247</RobotoText>
               </View>
             </View>
             <View style={[styles.inputGroup, {flexDirection: 'row'}]}>
               <View style={styles.smallerSingleInput}>
                 <RobotoText style={styles.label}>DI</RobotoText>
                 <RobotoText style={styles.sectionText}>
-                  {ios.in_dig?.qtd || '-'}
+                  {ios.in_dig?.qtd || '2'}
                   </RobotoText>
               </View>
               <View style={styles.smallerSingleInput}>
                 <RobotoText style={styles.label}>DO</RobotoText>
-                <RobotoText style={styles.sectionText}>{ios.out_dig?.qtd || '-'}</RobotoText>
+                <RobotoText style={styles.sectionText}>{ios.out_dig?.qtd || '2'}</RobotoText>
               </View>
               <View style={styles.smallerSingleInput}>
                 <RobotoText style={styles.label}>AI</RobotoText>
-                <RobotoText style={styles.sectionText}>{ios.in_ana?.qtd || '-'}</RobotoText>
+                <RobotoText style={styles.sectionText}>{ios.in_ana?.qtd || '2'}</RobotoText>
               </View>
               <View style={styles.smallerSingleInput}>
                 <RobotoText style={styles.label}>AO</RobotoText>

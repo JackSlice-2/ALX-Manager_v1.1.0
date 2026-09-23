@@ -66,19 +66,7 @@ const ModalContainer: React.FC<ModalContainerProps> = ({
             headerButton={headerButton}
             onPress={onPress}
           />
-          {shouldShowLoader ? (
-            <View
-              style={{
-                width: '100%',
-                justifyContent: 'center',
-                alignItems: 'center',
-                padding: '30%',
-                marginVertical: '25%',
-              }}
-            >
-              <LoaderOverlay visible message={t.System.LoadingData} />
-            </View>
-            ) : (
+         
 
           <KeyboardAwareScrollView
             style={styles.scrollContainer}
@@ -88,7 +76,6 @@ const ModalContainer: React.FC<ModalContainerProps> = ({
           >
             {children}
           </KeyboardAwareScrollView>
-              )}
         </View>
       </KeyboardAvoidingView>
     </Modal>

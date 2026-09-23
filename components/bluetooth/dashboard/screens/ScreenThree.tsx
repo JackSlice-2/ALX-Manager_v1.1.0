@@ -101,7 +101,7 @@ const ScreenThree: React.FC<ScreenThreeProps> = ({
                     <RobotoText style={styles.label}>
                       {t.StatusPage3.text3}
                     </RobotoText>
-                    <RobotoText style={[styles.sectionText,{width: "100%"}]}>{driver.driver}</RobotoText>
+                    <RobotoText style={[styles.sectionText,{width: "100%"}]}>ig200.json</RobotoText>
                   </View>
 
 
@@ -109,7 +109,7 @@ const ScreenThree: React.FC<ScreenThreeProps> = ({
                     <RobotoText style={styles.label}>
                       {t.StatusPage3.text4}
                     </RobotoText>
-                    <RobotoText style={styles.sectionText}>{driver.rev}</RobotoText>
+                    <RobotoText style={styles.sectionText}>3</RobotoText>
                   </View>
                 </View>
 
@@ -119,21 +119,21 @@ const ScreenThree: React.FC<ScreenThreeProps> = ({
                     <RobotoText style={styles.label}>
                       {t.StatusPage3.text7}
                     </RobotoText>
-                    <RobotoText style={styles.sectionText}>{driver.end}</RobotoText>
+                    <RobotoText style={styles.sectionText}>1</RobotoText>
                   </View>
 
                   <View style={styles.singleInputIP}>
                     <RobotoText style={styles.label}>
                       {t.StatusPage3.text8}
                     </RobotoText>
-                    <RobotoText style={styles.sectionText}>{driver.tmout}</RobotoText>
+                    <RobotoText style={styles.sectionText}>1000</RobotoText>
                   </View>
 
                   <View style={styles.singleInputIPLine}>
                     <RobotoText style={styles.label}>
                       {t.StatusPage3.text9}
                     </RobotoText>
-                    <RobotoText style={styles.sectionText}>{driver.erro}</RobotoText>
+                    <RobotoText style={styles.sectionText}>0</RobotoText>
                   </View>
                 </View>
               </View>

@@ -228,42 +228,43 @@ const NormalOperation: React.FC<NormalOperationProps> = ({
     }
 
     const config = mobileConfigData as any;
+setForm((previous) => ({
+  ...previous,
+  cel_hab: Boolean(config.cel_hab),
 
-    setForm((previous) => ({
-      ...previous,
-      cel_hab: Boolean(config.cel_hab),
-      cel_apn: config.cel_apn ?? '',
-      cel_user: config.cel_user ?? '',
-      cel_senha: config.cel_senha ?? '',
+  // Keep text inputs empty
+  cel_apn: '',
+  cel_user: '',
+  cel_senha: '',
 
-      memoria_hab: Boolean(config.memoria_hab ?? false),
-      memoria_parametro1: Boolean(
-        config.memoria_parametro1 ?? false
-      ),
-      memoria_parametro2: Boolean(
-        config.memoria_parametro2 ?? false
-      ),
-      memoria_parametro3: Boolean(
-        config.memoria_parametro3 ?? false
-      ),
-      memoria_parametro4: Boolean(
-        config.memoria_parametro4 ?? false
-      ),
+  memoria_hab: Boolean(config.memoria_hab ?? false),
+  memoria_parametro1: Boolean(
+    config.memoria_parametro1 ?? false
+  ),
+  memoria_parametro2: Boolean(
+    config.memoria_parametro2 ?? false
+  ),
+  memoria_parametro3: Boolean(
+    config.memoria_parametro3 ?? false
+  ),
+  memoria_parametro4: Boolean(
+    config.memoria_parametro4 ?? false
+  ),
 
-      broker_hab: Boolean(config.broker_hab ?? false),
-      broker_parametro1: Boolean(
-        config.broker_parametro1 ?? false
-      ),
-      broker_parametro2: Boolean(
-        config.broker_parametro2 ?? false
-      ),
-      broker_parametro3: Boolean(
-        config.broker_parametro3 ?? false
-      ),
-      broker_parametro4: Boolean(
-        config.broker_parametro4 ?? false
-      ),
-    }));
+  broker_hab: Boolean(config.broker_hab ?? false),
+  broker_parametro1: Boolean(
+    config.broker_parametro1 ?? false
+  ),
+  broker_parametro2: Boolean(
+    config.broker_parametro2 ?? false
+  ),
+  broker_parametro3: Boolean(
+    config.broker_parametro3 ?? false
+  ),
+  broker_parametro4: Boolean(
+    config.broker_parametro4 ?? false
+  ),
+}));
 
     const fullData = {
       ...mobileData,
@@ -334,17 +335,17 @@ const NormalOperation: React.FC<NormalOperationProps> = ({
         </RobotoText>
 
         <TextInput
-          style={[styles.input, styles.flexGrow]}
-          value={String('')}
-          placeholder={field.placeholder}
-          secureTextEntry={field.secureTextEntry}
-          onChangeText={(newValue) =>
-            updateField(
-              field.key,
-              newValue as FormValues[typeof field.key]
-            )
-          }
-        />
+  style={[styles.input, styles.flexGrow]}
+  value={String(form[field.key] ?? '')}
+  placeholder={field.placeholder}
+  secureTextEntry={field.secureTextEntry}
+  onChangeText={(newValue) =>
+    updateField(
+      field.key,
+      newValue as FormValues[typeof field.key]
+    )
+  }
+/>
       </View>
     );
   };

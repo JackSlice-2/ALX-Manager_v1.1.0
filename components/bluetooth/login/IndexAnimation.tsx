@@ -2,6 +2,7 @@ import { Animated, Dimensions, Easing, Image, StyleSheet, TouchableOpacity } fro
 import RobotoText from "../../RobotoText"
 import { useEffect, useRef } from "react";
 import { useT } from "@/hooks/useT";
+import { router } from "expo-router";
 
 const { width, height } = Dimensions.get('window');
 const logoSize = width * 0.85;
@@ -46,7 +47,7 @@ const IndexAnimation: React.FC<IndexAnimationProps> = ({
           </RobotoText>
         </TouchableOpacity>
 
-        <TouchableOpacity style={styles.button} onPress={openNetworkModal}>
+        <TouchableOpacity style={styles.button} onPress={() => router.push('/(bluetooth)/(tabs)/status')}>
           <Image source={require('@/assets/images/Bluetooth.jpeg')} style={{ width: 97, height: 70, alignSelf: 'center', marginBottom: 10 }} />
           <RobotoText style={styles.buttonText}>
             {t.Login.connectBluetooth}

@@ -2,24 +2,16 @@ import React from 'react';
 import { StyleSheet, View } from 'react-native';
 import PageContainer from '../../../components/PageContainer';
 import RobotoText from '../../../components/RobotoText';
-import useGetInfo from '@/utils/getEvery5Seconds';
-import LoaderOverlay from '@/components/LoaderOverlay';
 import { useT } from '@/hooks/useT';
 
 const WiFi = () => {
 
-  const ios = useGetInfo('/req_info_ios').info
-  const inAna = ios.in_ana
-  const inDig = ios.in_dig
-  const outDig = ios.out_dig
-  const count = ios.count
-  const freq = ios.freq
+  const inAna = 1
+  const inDig = 2
+  const count = 3
 
   const t = useT()
 
-  if (!ios || !inAna || !inDig || !outDig || !count || !freq) {
-    return <LoaderOverlay visible message={t.System.LoadingData} />
-  }
 
   return (
     <PageContainer
@@ -43,7 +35,7 @@ const WiFi = () => {
           </RobotoText>
           <RobotoText style={styles.label}>DI 1</RobotoText>
           <RobotoText style={styles.sectionText}>
-            {inDig?.estados?.[0] ? 'ON' : 'OFF'}
+            OFF
           </RobotoText>
         </View>
 
@@ -51,7 +43,7 @@ const WiFi = () => {
           <RobotoText style={styles.label}></RobotoText>
           <RobotoText style={styles.label}>DI 2</RobotoText>
           <RobotoText style={styles.sectionText}>
-            {inDig?.estados?.[1] ? 'ON' : 'OFF'}
+            OFF
           </RobotoText>
         </View>
       </View>
@@ -71,7 +63,7 @@ const WiFi = () => {
           <RobotoText style={styles.label}>{t.Monitoring.text3}</RobotoText>
           <RobotoText style={styles.label}>AI 1</RobotoText>
           <RobotoText style={styles.sectionText}>
-            {inAna.valor?.[0] || '-'}
+            00.00 mA
           </RobotoText>
         </View>
 
@@ -79,7 +71,7 @@ const WiFi = () => {
           <RobotoText style={styles.label}></RobotoText>
           <RobotoText style={styles.label}>AI 2</RobotoText>
           <RobotoText style={styles.sectionText}>
-            {inAna.valor?.[1] || '-'}
+            00.00 V
           </RobotoText>
         </View>
       </View>
@@ -99,7 +91,7 @@ const WiFi = () => {
           <RobotoText style={styles.label}>{t.Monitoring.text4}</RobotoText>
           <RobotoText style={styles.label}>{t.Monitoring.text5}</RobotoText>
           <RobotoText style={styles.sectionText}>
-            {count.value[0]}
+            0
           </RobotoText>
         </View>
 
@@ -107,7 +99,7 @@ const WiFi = () => {
           <RobotoText style={styles.label}></RobotoText>
           <RobotoText style={styles.label}>{t.Monitoring.text6}</RobotoText>
           <RobotoText style={styles.sectionText}>
-            {count.value[1]}
+            0
           </RobotoText>
         </View>
       </View>

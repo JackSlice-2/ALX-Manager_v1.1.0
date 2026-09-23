@@ -14,7 +14,6 @@ const ScreenOne: React.FC<ScreenOneProps> = ({
   screenWidth, 
   isSmallDevice,
   }) => {
-  const t = useT();
   const infoCards = useInfoCards();
   
   const translateY = useRef(new Animated.Value(0)).current;
@@ -30,13 +29,9 @@ const ScreenOne: React.FC<ScreenOneProps> = ({
           contentContainerStyle={{ paddingTop: 5 }}
         >
           <View style={[styles.screen, styles.grid, { width: screenWidth }]}>
-            {infoCards === null || infoCards.length === 0 ? (
-              <View style={{position: 'absolute', top: 50, left: 0, right: 0, bottom: 0, height: 200}}>
-              <LoaderOverlay visible message={t.System.LoadingInfo} />
-            </View>
-            ) : (
+            
               <>
-            {infoCards.map((card, index) => (
+            {infoCards?.map((card, index) => (
               <View
                 key={index}
                 style={{
@@ -51,7 +46,6 @@ const ScreenOne: React.FC<ScreenOneProps> = ({
               </View>
             ))}
             </>
-          )}
           </View>
         </ScrollView>
       </Animated.View>

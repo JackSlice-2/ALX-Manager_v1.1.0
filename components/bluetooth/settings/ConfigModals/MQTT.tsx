@@ -141,7 +141,7 @@ const handleSave = () => {
                         }
         <View style={styles.inputGroup}>
           <RobotoText style={styles.label}>{t.MQTTSettings.text0}</RobotoText>
-          <RobotoText style={styles.sectionText}>{mqttData.mqtt_stat || '---'}</RobotoText>
+          <RobotoText style={styles.sectionText}>{mqttData.mqtt_stat || 'Conectado'}</RobotoText>
         </View>
 
         {/* MQTT Enabled Toggle */}
@@ -150,12 +150,12 @@ const handleSave = () => {
             <Switch
               thumbColor={isMQTTEnabled ? 'rgba(163, 188, 216, 0.6)' : 'rgba(200, 200, 200, 0.5)'}
               trackColor={{ false: 'rgba(200, 200, 200, 0.5)', true: 'rgba(32, 62, 107, 0.66)' }}
-              value={isMQTTEnabled}
+              value={true}
               onValueChange={handleToggleChange}
               style={{ transform: [{ scaleX: 1.1 }, { scaleY: 1.1 }], width: 50, height: 30 }}
             />
 <RobotoText>
-  {isMQTTEnabled ? t.System.Enabled : t.System.Disabled}
+  Habilitado
 </RobotoText>
           </View>
         </View>
@@ -164,12 +164,12 @@ const handleSave = () => {
         <View style={styles.inputGroup}>
 
         {[
-          { label: t.MQTTSettings.text1, value: isHost, setter: setIsHost },
-          { label: t.MQTTSettings.text2, value: isDoor, setter: setIsDoor },
-          { label: t.MQTTSettings.text3, value: isUser, setter: setIsUser },
-          { label: t.MQTTSettings.text4, value: isPassword, setter: setIsPassword },
-          { label: t.MQTTSettings.text5, value: isPubTopic, setter: setIsPubTopic },
-          { label: t.MQTTSettings.text6, value: isSubsTopic, setter: setIsSubsTopic },
+          { label: t.MQTTSettings.text1, value: "iot2.allexo.com.br", setter: setIsHost },
+          { label: t.MQTTSettings.text2, value: "1888", setter: setIsDoor },
+          { label: t.MQTTSettings.text3, value: "allexo", setter: setIsUser },
+          { label: t.MQTTSettings.text4, value: "@llexo", setter: setIsPassword },
+          { label: t.MQTTSettings.text5, value: "alx/factory/00000101/pub", setter: setIsPubTopic },
+          { label: t.MQTTSettings.text6, value: 'alx/factory/00000101/sub', setter: setIsSubsTopic },
         ].map((input, idx) => (
           <View key={idx} style={styles.inputGroup}>
             <RobotoText style={styles.inputLabel}>{input.label}</RobotoText>

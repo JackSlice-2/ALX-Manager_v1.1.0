@@ -233,10 +233,10 @@ const AlarmOperation: React.FC<AlarmOperationProps> = ({
 
     setForm((previous) => ({
       ...previous,
-      cel_hab: Boolean(config.cel_hab),
-      cel_apn: config.cel_apn ?? '',
-      cel_user: config.cel_user ?? '',
-      cel_senha: config.cel_senha ?? '',
+cel_hab: Boolean(config.cel_hab),
+cel_apn: '',
+cel_user: '',
+cel_senha: '',
 
       memoria_hab: Boolean(config.memoria_hab ?? false),
       memoria_parametro1: Boolean(
@@ -338,8 +338,7 @@ const AlarmOperation: React.FC<AlarmOperationProps> = ({
 
         <TextInput
           style={[styles.input, styles.flexGrow]}
-          value={String('')}
-          placeholder={field.placeholder}
+value={String(form[field.key] ?? '')}          placeholder={field.placeholder}
           secureTextEntry={field.secureTextEntry}
           onChangeText={(newValue) =>
             updateField(
