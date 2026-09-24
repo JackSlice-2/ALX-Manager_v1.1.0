@@ -55,24 +55,86 @@ const WiFi = () => {
           width: '100%',
           backgroundColor: 'rgb(233, 234, 235)',
           padding: 10,
-          borderRadius: 16,
-          marginBottom: 20,
+          borderTopRightRadius: 16,
+          borderTopLeftRadius: 16,
         }}
       >
         <View style={styles.inputGroupVariant}>
-          <RobotoText style={styles.label}>{t.Monitoring.text3}</RobotoText>
-          <RobotoText style={styles.label}>AI 1</RobotoText>
+          <RobotoText style={styles.topLabel}>Entrada Analógica AI 1</RobotoText>
+          <RobotoText style={styles.label}></RobotoText>
           <RobotoText style={styles.sectionText}>
-            00.00 mA
+            Escala [V/maA]:
+          </RobotoText>
+          <RobotoText style={styles.label}></RobotoText>
+          <RobotoText style={styles.sectionText}>
+            Valor Digital [0-4095]:
+          </RobotoText>
+          <RobotoText style={styles.label}></RobotoText>
+          <RobotoText style={styles.sectionText}>
+            Valor Convertido:
           </RobotoText>
         </View>
 
         <View style={styles.inputGroupVariant}>
           <RobotoText style={styles.label}></RobotoText>
-          <RobotoText style={styles.label}>AI 2</RobotoText>
+          <RobotoText style={styles.label}></RobotoText>
+          <RobotoText style={styles.sectionText}>
+            00.00 mA
+          </RobotoText>
+           <RobotoText style={styles.label}></RobotoText>
+          <RobotoText style={styles.sectionText}>
+            0
+          </RobotoText>
+           <RobotoText style={styles.label}></RobotoText>
+          <RobotoText style={styles.sectionText}>
+            0
+          </RobotoText>
+        </View>
+      </View>
+
+       <View
+        style={{
+          flexDirection: 'row',
+          gap: 20,
+          width: '100%',
+          backgroundColor: 'rgb(233, 234, 235)',
+          padding: 10,
+          borderBottomLeftRadius: 16,
+          borderBottomRightRadius: 16,
+          marginBottom: 20,
+        }}
+      >
+        <View style={styles.inputGroupVariant}>
+          <RobotoText style={styles.topLabel}>Entrada Analógica AI 2</RobotoText>
+          <RobotoText style={styles.label}></RobotoText>
+          <RobotoText style={styles.sectionText}>
+            Escala [V/maA]:
+          </RobotoText>
+          <RobotoText style={styles.label}></RobotoText>
+          <RobotoText style={styles.sectionText}>
+            Valor Digital [0-4095]:
+          </RobotoText>
+          <RobotoText style={styles.label}></RobotoText>
+          <RobotoText style={styles.sectionText}>
+            Valor Convertido:
+          </RobotoText>
+        </View>
+
+        <View style={styles.inputGroupValue}>
+          <RobotoText style={styles.label}></RobotoText>
+          <RobotoText style={styles.label}></RobotoText>
           <RobotoText style={styles.sectionText}>
             00.00 V
           </RobotoText>
+           <RobotoText style={styles.label}></RobotoText>
+          <RobotoText style={styles.sectionText}>
+            0
+          </RobotoText>
+           <RobotoText style={styles.label}></RobotoText>
+          <RobotoText style={styles.sectionText}>
+            0
+          </RobotoText>
+          
         </View>
       </View>
 
@@ -113,7 +175,14 @@ export default WiFi;
 const styles = StyleSheet.create({
   inputGroupVariant: {
     marginBottom: 20,
-    width: '45%',
+    width: '55%',
+    position: 'relative',
+    borderRadius: 10,
+    padding: 5,
+  },
+    inputGroupValue: {
+    marginBottom: 20,
+    width: '35%',
     position: 'relative',
     borderRadius: 10,
     padding: 5,
@@ -127,8 +196,9 @@ const styles = StyleSheet.create({
     marginBottom: 4,
   },
   topLabel: {
-    color: '#666',
-    marginBottom: 4,
-    width: '130%'
+    color: '#141212',
+    width: '170%',
+    fontSize: 18,
+    fontWeight: 900
   },
 });

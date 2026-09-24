@@ -181,12 +181,7 @@ const handleSave = () => {
             />
           </View>
         ))}
-          </View>
-
-
-        {/* QoS Picker */}
-
-        <View style={styles.inputGroup}>
+         
             <RobotoText>QoS</RobotoText>
 
           <Picker

@@ -27,12 +27,14 @@ interface FormValues {
   cel_senha: string;
 
   memoria_hab: boolean;
+  memoria_user: string;
   memoria_parametro1: boolean;
   memoria_parametro2: boolean;
   memoria_parametro3: boolean;
   memoria_parametro4: boolean;
 
   broker_hab: boolean;
+  broker_user: string;
   broker_parametro1: boolean;
   broker_parametro2: boolean;
   broker_parametro3: boolean;
@@ -86,6 +88,7 @@ const AlarmOperation: React.FC<AlarmOperationProps> = ({
 
     // Registro em Memória
     memoria_hab: false,
+    memoria_user: '',
     memoria_parametro1: false,
     memoria_parametro2: false,
     memoria_parametro3: false,
@@ -93,6 +96,7 @@ const AlarmOperation: React.FC<AlarmOperationProps> = ({
 
     // Publicação no Broker
     broker_hab: false,
+    broker_user: '',
     broker_parametro1: false,
     broker_parametro2: false,
     broker_parametro3: false,
@@ -135,7 +139,7 @@ const AlarmOperation: React.FC<AlarmOperationProps> = ({
             {
               id: 'alarme-memoria-user',
               type: 'input',
-              key: 'cel_user',
+              key: 'memoria_user',
               title: t.DataRegistrySettings.text1,
             },
             {
@@ -178,7 +182,7 @@ const AlarmOperation: React.FC<AlarmOperationProps> = ({
             {
               id: 'alarme-broker-user',
               type: 'input',
-              key: 'cel_user',
+              key: 'broker_user',
               title: t.DataRegistrySettings.text1,
             },
             {
@@ -244,6 +248,7 @@ const AlarmOperation: React.FC<AlarmOperationProps> = ({
       memoria_hab: Boolean(
         config.memoria_hab ?? false
       ),
+      memoria_user: '',
       memoria_parametro1: Boolean(
         config.memoria_parametro1 ?? false
       ),
@@ -261,6 +266,7 @@ const AlarmOperation: React.FC<AlarmOperationProps> = ({
       broker_hab: Boolean(
         config.broker_hab ?? false
       ),
+      broker_user: '',
       broker_parametro1: Boolean(
         config.broker_parametro1 ?? false
       ),
