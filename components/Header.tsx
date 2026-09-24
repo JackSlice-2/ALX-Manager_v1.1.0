@@ -102,7 +102,7 @@ const Header: React.FC<HeaderProps> = ({
                         {t.Header.Model}
                     </RobotoText>
                     <RobotoText style={[styles.title, { color: titleTextColor }]}>
-                        ALX-4GSE
+                        ALX-5DLG
                     </RobotoText>
                 </View>
                 <View>

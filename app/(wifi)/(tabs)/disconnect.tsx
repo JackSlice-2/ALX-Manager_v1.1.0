@@ -1,6 +1,6 @@
 import { router, useFocusEffect } from 'expo-router';
 import React, { useEffect, useRef, useState } from 'react';
-import { Alert, Animated, BackHandler, Dimensions, Image, Linking, Platform, StyleSheet, TouchableOpacity, View } from 'react-native';
+import { Alert, Animated, BackHandler, Dimensions, Image, Linking, Platform, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import WifiManager from 'react-native-wifi-reborn';
 import Loader from '../../../components/Loader';
 import RobotoText from '../../../components/RobotoText';
@@ -159,11 +159,13 @@ const isStillOnDeviceNetwork = async () => {
             </View>
       <Animated.View style={{ transform: [{ scale: scaleAnim }] }}>
         <Image
-          source={require('@/assets/images/Logo.png')}
+          source={require('@/assets/images/Logo_v101.png')}
           style={{ width: logoSize, height: logoSize, marginBottom: -60 }}
           resizeMode="contain"
         />
       </Animated.View>
+
+        <Text style={{color:'grey', fontSize: 26, position: 'absolute', top: 200, fontWeight: '400'}}>Versão 1.1.0</Text>
 
       <View
         style={{

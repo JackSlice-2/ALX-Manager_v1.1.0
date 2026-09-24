@@ -184,9 +184,11 @@ const handleSave = () => {
           </View>
 
 
-        {/* QOS Picker */}
+        {/* QoS Picker */}
 
         <View style={styles.inputGroup}>
+                      <RobotoText>QoS</RobotoText>
+          
           <Picker
             selectedValue={isQOS}
             onValueChange={(v) => setIsQOS(v)}

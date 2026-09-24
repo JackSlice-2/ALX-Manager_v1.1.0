@@ -1,4 +1,4 @@
-import { Animated, Dimensions, Easing, Image, StyleSheet, TouchableOpacity } from "react-native"
+import { Animated, Dimensions, Easing, Image, StyleSheet, Text, TouchableOpacity } from "react-native"
 import RobotoText from "../../RobotoText"
 import { useEffect, useRef } from "react";
 import { useT } from "@/hooks/useT";
@@ -38,6 +38,7 @@ const IndexAnimation: React.FC<IndexAnimationProps> = ({
       <Animated.View style={{ transform: [{ scale: scaleAnim }] }}>
         <Image source={require('@/assets/images/Logo_v101.png')} style={{ width: logoSize, height: logoSize, marginBottom: -60 }} resizeMode="contain" />
       </Animated.View>
+            <Text style={{color:'grey', fontSize: 26, position: 'absolute', marginBottom: 46, fontWeight: '400'}}>Versão 1.1.0</Text>
 
       <Animated.View style={[styles.buttonRow, { transform: [{ translateY: buttonTranslateY }] }]}>
         <TouchableOpacity style={styles.button} onPress={openQRScanner}>
@@ -48,7 +49,7 @@ const IndexAnimation: React.FC<IndexAnimationProps> = ({
         </TouchableOpacity>
 
         <TouchableOpacity style={styles.button} onPress={() => router.push('/(bluetooth)/(tabs)/status')}>
-          <Image source={require('@/assets/images/Bluetooth.jpeg')} style={{ width: 97, height: 70, alignSelf: 'center', marginBottom: 10 }} />
+          <Image source={require('@/assets/images/Bluetooth.png')} style={{ width: 97, height: 70, alignSelf: 'center', marginBottom: 10 }} />
           <RobotoText style={styles.buttonText}>
             {t.Login.connectBluetooth}
           </RobotoText>

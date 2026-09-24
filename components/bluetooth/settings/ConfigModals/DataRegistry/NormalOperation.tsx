@@ -51,7 +51,6 @@ type InputField = {
   type: 'input';
   key: keyof FormValues;
   title: string;
-  placeholder?: string;
   secureTextEntry?: boolean;
 };
 
@@ -85,12 +84,14 @@ const NormalOperation: React.FC<NormalOperationProps> = ({
     cel_user: '',
     cel_senha: '',
 
+    // Registro em Memória
     memoria_hab: false,
     memoria_parametro1: false,
     memoria_parametro2: false,
     memoria_parametro3: false,
     memoria_parametro4: false,
 
+    // Publicação no Broker
     broker_hab: false,
     broker_parametro1: false,
     broker_parametro2: false,
@@ -104,6 +105,7 @@ const NormalOperation: React.FC<NormalOperationProps> = ({
     {
       id: 'operacao-normal',
       title: 'Operação Normal',
+
       fields: [
         {
           id: 'normal-cel-hab',
@@ -116,13 +118,13 @@ const NormalOperation: React.FC<NormalOperationProps> = ({
           type: 'input',
           key: 'cel_apn',
           title: t.DataRegistrySettings.text0,
-          placeholder: 'APN',
         },
       ],
+
       subsections: [
         {
           id: 'normal-memoria',
-          title: 'Registro em Memória ',
+          title: 'Registro em Memória',
           fields: [
             {
               id: 'normal-memoria-hab',
@@ -131,11 +133,10 @@ const NormalOperation: React.FC<NormalOperationProps> = ({
               title: 'Habilitar registro',
             },
             {
-              id: 'normal-cel-user',
+              id: 'normal-memoria-user',
               type: 'input',
               key: 'cel_user',
               title: t.DataRegistrySettings.text1,
-              placeholder: 'Usuário',
             },
             {
               id: 'normal-memoria-parametro1',
@@ -163,6 +164,7 @@ const NormalOperation: React.FC<NormalOperationProps> = ({
             },
           ],
         },
+
         {
           id: 'normal-broker',
           title: 'Publicação no Broker',
@@ -178,30 +180,29 @@ const NormalOperation: React.FC<NormalOperationProps> = ({
               type: 'input',
               key: 'cel_user',
               title: t.DataRegistrySettings.text1,
-              placeholder: 'Usuário',
             },
             {
               id: 'normal-broker-parametro1',
               type: 'switch',
-              key: 'memoria_parametro1',
+              key: 'broker_parametro1',
               title: 'Registrar Entradas Analógicas',
             },
             {
               id: 'normal-broker-parametro2',
               type: 'switch',
-              key: 'memoria_parametro2',
+              key: 'broker_parametro2',
               title: 'Registrar Entradas Digitais',
             },
             {
               id: 'normal-broker-parametro3',
               type: 'switch',
-              key: 'memoria_parametro3',
+              key: 'broker_parametro3',
               title: 'Registrar Rede i2C',
             },
             {
               id: 'normal-broker-parametro4',
               type: 'switch',
-              key: 'memoria_parametro4',
+              key: 'broker_parametro4',
               title: 'Registrar Drivers MODBUS',
             },
           ],
@@ -228,43 +229,51 @@ const NormalOperation: React.FC<NormalOperationProps> = ({
     }
 
     const config = mobileConfigData as any;
-setForm((previous) => ({
-  ...previous,
-  cel_hab: Boolean(config.cel_hab),
 
-  // Keep text inputs empty
-  cel_apn: '',
-  cel_user: '',
-  cel_senha: '',
+    setForm((previous) => ({
+      ...previous,
 
-  memoria_hab: Boolean(config.memoria_hab ?? false),
-  memoria_parametro1: Boolean(
-    config.memoria_parametro1 ?? false
-  ),
-  memoria_parametro2: Boolean(
-    config.memoria_parametro2 ?? false
-  ),
-  memoria_parametro3: Boolean(
-    config.memoria_parametro3 ?? false
-  ),
-  memoria_parametro4: Boolean(
-    config.memoria_parametro4 ?? false
-  ),
+      cel_hab: Boolean(config.cel_hab),
 
-  broker_hab: Boolean(config.broker_hab ?? false),
-  broker_parametro1: Boolean(
-    config.broker_parametro1 ?? false
-  ),
-  broker_parametro2: Boolean(
-    config.broker_parametro2 ?? false
-  ),
-  broker_parametro3: Boolean(
-    config.broker_parametro3 ?? false
-  ),
-  broker_parametro4: Boolean(
-    config.broker_parametro4 ?? false
-  ),
-}));
+      // Keep text inputs mocked/empty
+      cel_apn: '',
+      cel_user: '',
+      cel_senha: '',
+
+      // Registro em Memória
+      memoria_hab: Boolean(
+        config.memoria_hab ?? false
+      ),
+      memoria_parametro1: Boolean(
+        config.memoria_parametro1 ?? false
+      ),
+      memoria_parametro2: Boolean(
+        config.memoria_parametro2 ?? false
+      ),
+      memoria_parametro3: Boolean(
+        config.memoria_parametro3 ?? false
+      ),
+      memoria_parametro4: Boolean(
+        config.memoria_parametro4 ?? false
+      ),
+
+      // Publicação no Broker
+      broker_hab: Boolean(
+        config.broker_hab ?? false
+      ),
+      broker_parametro1: Boolean(
+        config.broker_parametro1 ?? false
+      ),
+      broker_parametro2: Boolean(
+        config.broker_parametro2 ?? false
+      ),
+      broker_parametro3: Boolean(
+        config.broker_parametro3 ?? false
+      ),
+      broker_parametro4: Boolean(
+        config.broker_parametro4 ?? false
+      ),
+    }));
 
     const fullData = {
       ...mobileData,
@@ -286,7 +295,6 @@ setForm((previous) => ({
       [key]: value,
     }));
   };
-
 
   const renderField = (field: FormField) => {
     if (field.type === 'switch') {
@@ -335,22 +343,23 @@ setForm((previous) => ({
         </RobotoText>
 
         <TextInput
-  style={[styles.input, styles.flexGrow]}
-  value={String(form[field.key] ?? '')}
-  placeholder={field.placeholder}
-  secureTextEntry={field.secureTextEntry}
-  onChangeText={(newValue) =>
-    updateField(
-      field.key,
-      newValue as FormValues[typeof field.key]
-    )
-  }
-/>
+          style={[styles.input, styles.flexGrow]}
+          value={String(form[field.key] ?? '')}
+          secureTextEntry={field.secureTextEntry}
+          onChangeText={(newValue) =>
+            updateField(
+              field.key,
+              newValue as FormValues[typeof field.key]
+            )
+          }
+        />
       </View>
     );
   };
 
-  const renderSubsection = (subsection: FormSubsection) => {
+  const renderSubsection = (
+    subsection: FormSubsection
+  ) => {
     return (
       <View key={subsection.id}>
         <View style={styles.subsectionContainer}>
@@ -365,7 +374,7 @@ setForm((previous) => ({
   };
 
   return (
-   <>
+    <>
       {sendPayload && (
         <View style={styles.loaderContainer}>
           <LoaderOverlay visible={Boolean(sendPayload)} />

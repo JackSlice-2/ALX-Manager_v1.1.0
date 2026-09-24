@@ -1,14 +1,12 @@
 import { Image, StyleSheet } from "react-native";
 import Battery from "../components/dashboard/Battery";
 import IconButton from "../components/dashboard/IconButton";
-import useGetInfo from "./getEvery5Seconds";
 import React, { useEffect } from "react";
 import { useT } from "@/hooks/useT";
 
 export const useInfoCards = () => {
 
   const t = useT()
-  const datalogger = useGetInfo('/req_info_datalogger')
 
   const infoCards  = [
     {
@@ -16,7 +14,7 @@ export const useInfoCards = () => {
       label: t.StatusPage.text1,
       value: (
         <IconButton
-          text='1.0.5'
+          text='0.0.5'
           icon={require('../assets/images/Tools.png')}
           option={t.SettingsOptions.Updates}
         />

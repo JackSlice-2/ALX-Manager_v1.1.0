@@ -51,7 +51,6 @@ type InputField = {
   type: 'input';
   key: keyof FormValues;
   title: string;
-  placeholder?: string;
   secureTextEntry?: boolean;
 };
 
@@ -85,12 +84,14 @@ const AlarmOperation: React.FC<AlarmOperationProps> = ({
     cel_user: '',
     cel_senha: '',
 
+    // Registro em Memória
     memoria_hab: false,
     memoria_parametro1: false,
     memoria_parametro2: false,
     memoria_parametro3: false,
     memoria_parametro4: false,
 
+    // Publicação no Broker
     broker_hab: false,
     broker_parametro1: false,
     broker_parametro2: false,
@@ -101,10 +102,10 @@ const AlarmOperation: React.FC<AlarmOperationProps> = ({
   const hasInitialized = useRef(false);
 
   const sections: FormSection[] = [
-   
     {
       id: 'operacao-alarme',
       title: 'Operação em Alarme',
+
       fields: [
         {
           id: 'alarme-cel-hab',
@@ -113,13 +114,13 @@ const AlarmOperation: React.FC<AlarmOperationProps> = ({
           title: 'Habilitar Alarme',
         },
         {
-          id: 'alarme-cel-apn1',
+          id: 'alarme-cel-apn',
           type: 'input',
           key: 'cel_apn',
           title: t.DataRegistrySettings.text0,
-          placeholder: 'APN',
         },
       ],
+
       subsections: [
         {
           id: 'alarme-memoria',
@@ -132,11 +133,10 @@ const AlarmOperation: React.FC<AlarmOperationProps> = ({
               title: 'Habilitar registro',
             },
             {
-              id: 'alarme-cel-user',
+              id: 'alarme-memoria-user',
               type: 'input',
               key: 'cel_user',
               title: t.DataRegistrySettings.text1,
-              placeholder: 'Usuário',
             },
             {
               id: 'alarme-memoria-parametro1',
@@ -164,6 +164,7 @@ const AlarmOperation: React.FC<AlarmOperationProps> = ({
             },
           ],
         },
+
         {
           id: 'alarme-broker',
           title: 'Publicação no Broker',
@@ -179,37 +180,35 @@ const AlarmOperation: React.FC<AlarmOperationProps> = ({
               type: 'input',
               key: 'cel_user',
               title: t.DataRegistrySettings.text1,
-              placeholder: 'Usuário',
             },
             {
               id: 'alarme-broker-parametro1',
               type: 'switch',
-              key: 'memoria_parametro1',
+              key: 'broker_parametro1',
               title: 'Registrar Entradas Analógicas',
             },
             {
               id: 'alarme-broker-parametro2',
               type: 'switch',
-              key: 'memoria_parametro2',
+              key: 'broker_parametro2',
               title: 'Registrar Entradas Digitais',
             },
             {
               id: 'alarme-broker-parametro3',
               type: 'switch',
-              key: 'memoria_parametro3',
+              key: 'broker_parametro3',
               title: 'Registrar Rede i2C',
             },
             {
               id: 'alarme-broker-parametro4',
               type: 'switch',
-              key: 'memoria_parametro4',
+              key: 'broker_parametro4',
               title: 'Registrar Drivers MODBUS',
             },
           ],
         },
       ],
     },
-     
   ];
 
   useEffect(() => {
@@ -233,12 +232,18 @@ const AlarmOperation: React.FC<AlarmOperationProps> = ({
 
     setForm((previous) => ({
       ...previous,
-cel_hab: Boolean(config.cel_hab),
-cel_apn: '',
-cel_user: '',
-cel_senha: '',
 
-      memoria_hab: Boolean(config.memoria_hab ?? false),
+      cel_hab: Boolean(config.cel_hab),
+
+      // Keep text inputs mocked/empty
+      cel_apn: '',
+      cel_user: '',
+      cel_senha: '',
+
+      // Registro em Memória
+      memoria_hab: Boolean(
+        config.memoria_hab ?? false
+      ),
       memoria_parametro1: Boolean(
         config.memoria_parametro1 ?? false
       ),
@@ -252,7 +257,10 @@ cel_senha: '',
         config.memoria_parametro4 ?? false
       ),
 
-      broker_hab: Boolean(config.broker_hab ?? false),
+      // Publicação no Broker
+      broker_hab: Boolean(
+        config.broker_hab ?? false
+      ),
       broker_parametro1: Boolean(
         config.broker_parametro1 ?? false
       ),
@@ -287,7 +295,6 @@ cel_senha: '',
       [key]: value,
     }));
   };
-
 
   const renderField = (field: FormField) => {
     if (field.type === 'switch') {
@@ -326,7 +333,6 @@ cel_senha: '',
       );
     }
 
-
     return (
       <View
         style={styles.inputGroup}
@@ -338,7 +344,7 @@ cel_senha: '',
 
         <TextInput
           style={[styles.input, styles.flexGrow]}
-value={String(form[field.key] ?? '')}          placeholder={field.placeholder}
+          value={String(form[field.key] ?? '')}
           secureTextEntry={field.secureTextEntry}
           onChangeText={(newValue) =>
             updateField(
@@ -351,7 +357,9 @@ value={String(form[field.key] ?? '')}          placeholder={field.placeholder}
     );
   };
 
-  const renderSubsection = (subsection: FormSubsection) => {
+  const renderSubsection = (
+    subsection: FormSubsection
+  ) => {
     return (
       <View key={subsection.id}>
         <View style={styles.subsectionContainer}>
@@ -366,7 +374,7 @@ value={String(form[field.key] ?? '')}          placeholder={field.placeholder}
   };
 
   return (
-<>
+    <>
       {sendPayload && (
         <View style={styles.loaderContainer}>
           <LoaderOverlay visible={Boolean(sendPayload)} />
@@ -416,9 +424,8 @@ value={String(form[field.key] ?? '')}          placeholder={field.placeholder}
             {section.subsections.map(renderSubsection)}
           </View>
         ))}
-
       </View>
-      </>
+    </>
   );
 };
 

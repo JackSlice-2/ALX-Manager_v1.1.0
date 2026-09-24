@@ -25,7 +25,7 @@ const Mobile: React.FC<MobileProps> = ({
   const [isSaveDisabled, setIsSaveDisabled] = useState(true);
 
 
-  const [isHab, setIsHab] = useState(false);
+  const [isHab, setIsHab] = useState(true);
   const [isApn, setIsApn] = useState('');
   const [isUser, setIsUser] = useState('');
   const [isSenha, setIsSenha] = useState('');
@@ -153,10 +153,10 @@ useEffect(() => {
                 false: 'rgba(200, 200, 200, 0.5)',
                 true: 'rgba(32, 62, 107, 0.66)'
               }}
-              value={true}
+              value={isHab}
               onValueChange={setIsHab}
             />
-            <RobotoText>Habilitado</RobotoText>
+            <RobotoText>{isHab ? "Habilitado" : "Desabilitado"}</RobotoText>
           </View>
         </View>
 

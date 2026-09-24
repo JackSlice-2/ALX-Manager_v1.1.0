@@ -21,22 +21,25 @@ interface AlarmConfigsProps {
 }
 
 interface FormValues {
-  cel_hab: boolean;
-  cel_apn: string;
-  cel_user: string;
-  cel_senha: string;
+  // Alarme Entrada Analógica 1
+  analogica1_hab: boolean;
+  analogica1_limiteInferior: string;
+  analogica1_limiteSuperior: string;
 
-  memoria_hab: boolean;
-  memoria_parametro1: boolean;
-  memoria_parametro2: boolean;
-  memoria_parametro3: boolean;
-  memoria_parametro4: boolean;
+  // Alarme Entrada Analógica 2
+  analogica2_hab: boolean;
+  analogica2_limiteInferior: string;
+  analogica2_limiteSuperior: string;
 
-  broker_hab: boolean;
-  broker_parametro1: boolean;
-  broker_parametro2: boolean;
-  broker_parametro3: boolean;
-  broker_parametro4: boolean;
+  // Alarme Entrada Digital 1
+  digital1_hab: boolean;
+  digital1_interromperHibernacao: boolean;
+  digital1_statusAlarme: boolean;
+
+  // Alarme Entrada Digital 2
+  digital2_hab: boolean;
+  digital2_interromperHibernacao: boolean;
+  digital2_statusAlarme: boolean;
 }
 
 type SwitchField = {
@@ -51,7 +54,6 @@ type InputField = {
   type: 'input';
   key: keyof FormValues;
   title: string;
-  placeholder?: string;
   secureTextEntry?: boolean;
 };
 
@@ -80,139 +82,140 @@ const AlarmConfigs: React.FC<AlarmConfigsProps> = ({
   const [sendPayload, setSendPayload] = useState<any>(null);
 
   const [form, setForm] = useState<FormValues>({
-    cel_hab: false,
-    cel_apn: '',
-    cel_user: '',
-    cel_senha: '',
+    // Alarme Entrada Analógica 1
+    analogica1_hab: false,
+    analogica1_limiteInferior: '',
+    analogica1_limiteSuperior: '',
 
-    memoria_hab: false,
-    memoria_parametro1: false,
-    memoria_parametro2: false,
-    memoria_parametro3: false,
-    memoria_parametro4: false,
+    // Alarme Entrada Analógica 2
+    analogica2_hab: false,
+    analogica2_limiteInferior: '',
+    analogica2_limiteSuperior: '',
 
-    broker_hab: false,
-    broker_parametro1: false,
-    broker_parametro2: false,
-    broker_parametro3: false,
-    broker_parametro4: false,
+    // Alarme Entrada Digital 1
+    digital1_hab: false,
+    digital1_interromperHibernacao: false,
+    digital1_statusAlarme: false,
+
+    // Alarme Entrada Digital 2
+    digital2_hab: false,
+    digital2_interromperHibernacao: false,
+    digital2_statusAlarme: false,
   });
 
   const hasInitialized = useRef(false);
 
   const sections: FormSection[] = [
-{
+    {
       id: 'entrada-alarme-a1',
       title: 'Alarme Entrada Analógica 1',
+
       fields: [
         {
-          id: 'alarme-cel-hab1',
+          id: 'alarme-a1-hab',
           type: 'switch',
-          key: 'cel_hab',
+          key: 'analogica1_hab',
           title: 'Habilitar',
         },
         {
-          id: 'alarme-cel-apn',
+          id: 'alarme-a1-limite-inferior',
           type: 'input',
-          key: 'cel_apn',
+          key: 'analogica1_limiteInferior',
           title: t.DataRegistrySettings.text2,
-          placeholder: 'APN',
         },
         {
-          id: 'alarme-cel',
+          id: 'alarme-a1-limite-superior',
           type: 'input',
-          key: 'cel_apn',
+          key: 'analogica1_limiteSuperior',
           title: t.DataRegistrySettings.text3,
-          placeholder: 'APN',
         },
       ],
-      subsections: [
-       
-      ],
-    },
-     {
-      id: 'entrada-alarme-a2',
-      title: 'Alarme Entrada Analógica 2',
-      fields: [
-        {
-          id: 'alarme-cel-hab2',
-          type: 'switch',
-          key: 'cel_hab',
-          title: 'Habilitar',
-        },
-        {
-          id: 'alarme-cel-apn2',
-          type: 'input',
-          key: 'cel_apn',
-          title: t.DataRegistrySettings.text2,
-          placeholder: 'APN',
-        },
-        {
-          id: 'alarme-cel',
-          type: 'input',
-          key: 'cel_apn',
-          title: t.DataRegistrySettings.text3,
-          placeholder: 'APN',
-        },
-      ],
-      subsections: [
-       
-      ],
+
+      subsections: [],
     },
 
-     {
+    {
+      id: 'entrada-alarme-a2',
+      title: 'Alarme Entrada Analógica 2',
+
+      fields: [
+        {
+          id: 'alarme-a2-hab',
+          type: 'switch',
+          key: 'analogica2_hab',
+          title: 'Habilitar',
+        },
+        {
+          id: 'alarme-a2-limite-inferior',
+          type: 'input',
+          key: 'analogica2_limiteInferior',
+          title: t.DataRegistrySettings.text2,
+        },
+        {
+          id: 'alarme-a2-limite-superior',
+          type: 'input',
+          key: 'analogica2_limiteSuperior',
+          title: t.DataRegistrySettings.text3,
+        },
+      ],
+
+      subsections: [],
+    },
+
+    {
       id: 'entrada-alarme-d1',
       title: 'Alarme Entrada Digital 1',
+
       fields: [
         {
-          id: 'alarme-cel-hab3',
+          id: 'alarme-d1-hab',
           type: 'switch',
-          key: 'cel_hab',
+          key: 'digital1_hab',
           title: 'Habilitar',
         },
         {
-          id: 'alarme-cel-hab4',
+          id: 'alarme-d1-interromper-hibernacao',
           type: 'switch',
-          key: 'cel_hab',
+          key: 'digital1_interromperHibernacao',
           title: 'Interromper Hibernação',
         },
         {
-          id: 'alarme-cel-hab5',
+          id: 'alarme-d1-status-alarme',
           type: 'switch',
-          key: 'cel_hab',
+          key: 'digital1_statusAlarme',
           title: 'Status para Alarme [ON/OFF]',
         },
       ],
-      subsections: [
-       
-      ],
+
+      subsections: [],
     },
-     {
+
+    {
       id: 'entrada-alarme-d2',
       title: 'Alarme Entrada Digital 2',
+
       fields: [
         {
-          id: 'alarme-cel-hab6',
+          id: 'alarme-d2-hab',
           type: 'switch',
-          key: 'cel_hab',
+          key: 'digital2_hab',
           title: 'Habilitar',
         },
         {
-          id: 'alarme-cel-hab7',
+          id: 'alarme-d2-interromper-hibernacao',
           type: 'switch',
-          key: 'cel_hab',
+          key: 'digital2_interromperHibernacao',
           title: 'Interromper Hibernação',
         },
         {
-          id: 'alarme-cel-hab8',
+          id: 'alarme-d2-status-alarme',
           type: 'switch',
-          key: 'cel_hab',
+          key: 'digital2_statusAlarme',
           title: 'Status para Alarme [ON/OFF]',
         },
       ],
-      subsections: [
-       
-      ],
+
+      subsections: [],
     },
   ];
 
@@ -237,37 +240,41 @@ const AlarmConfigs: React.FC<AlarmConfigsProps> = ({
 
     setForm((previous) => ({
       ...previous,
-cel_hab: Boolean(config.cel_hab),
-cel_apn: '',
-cel_user: '',
-cel_senha: '',
 
-      memoria_hab: Boolean(config.memoria_hab ?? false),
-      memoria_parametro1: Boolean(
-        config.memoria_parametro1 ?? false
+      // Alarme Entrada Analógica 1
+      analogica1_hab: Boolean(
+        config.analogica1_hab ?? false
       ),
-      memoria_parametro2: Boolean(
-        config.memoria_parametro2 ?? false
+      analogica1_limiteInferior: '',
+      analogica1_limiteSuperior: '',
+
+      // Alarme Entrada Analógica 2
+      analogica2_hab: Boolean(
+        config.analogica2_hab ?? false
       ),
-      memoria_parametro3: Boolean(
-        config.memoria_parametro3 ?? false
+      analogica2_limiteInferior: '',
+      analogica2_limiteSuperior: '',
+
+      // Alarme Entrada Digital 1
+      digital1_hab: Boolean(
+        config.digital1_hab ?? false
       ),
-      memoria_parametro4: Boolean(
-        config.memoria_parametro4 ?? false
+      digital1_interromperHibernacao: Boolean(
+        config.digital1_interromperHibernacao ?? false
+      ),
+      digital1_statusAlarme: Boolean(
+        config.digital1_statusAlarme ?? false
       ),
 
-      broker_hab: Boolean(config.broker_hab ?? false),
-      broker_parametro1: Boolean(
-        config.broker_parametro1 ?? false
+      // Alarme Entrada Digital 2
+      digital2_hab: Boolean(
+        config.digital2_hab ?? false
       ),
-      broker_parametro2: Boolean(
-        config.broker_parametro2 ?? false
+      digital2_interromperHibernacao: Boolean(
+        config.digital2_interromperHibernacao ?? false
       ),
-      broker_parametro3: Boolean(
-        config.broker_parametro3 ?? false
-      ),
-      broker_parametro4: Boolean(
-        config.broker_parametro4 ?? false
+      digital2_statusAlarme: Boolean(
+        config.digital2_statusAlarme ?? false
       ),
     }));
 
@@ -329,7 +336,6 @@ cel_senha: '',
       );
     }
 
-
     return (
       <View
         style={styles.inputGroup}
@@ -342,7 +348,6 @@ cel_senha: '',
         <TextInput
           style={[styles.input, styles.flexGrow]}
           value={String(form[field.key] ?? '')}
-          placeholder={field.placeholder}
           secureTextEntry={field.secureTextEntry}
           onChangeText={(newValue) =>
             updateField(
@@ -355,7 +360,9 @@ cel_senha: '',
     );
   };
 
-  const renderSubsection = (subsection: FormSubsection) => {
+  const renderSubsection = (
+    subsection: FormSubsection
+  ) => {
     return (
       <View key={subsection.id}>
         <View style={styles.subsectionContainer}>

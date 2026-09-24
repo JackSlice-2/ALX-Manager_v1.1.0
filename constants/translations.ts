@@ -190,7 +190,7 @@ export const translations = {
       text4: "Senha",
       text5: "Tópico de Publicação",
       text6: "Tópico de Subscrição",
-      text7: "QOS",
+      text7: "QoS",
       text8: "Publicações Retentivas"
     },
     DriverSettings: {
@@ -609,7 +609,7 @@ export const translations = {
       text4: "Password",
       text5: "Publication Topic",
       text6: "Subscription Topic",
-      text7: "QOS",
+      text7: "QoS",
       text8: "Retained Publications"
     },
     DriverSettings: {

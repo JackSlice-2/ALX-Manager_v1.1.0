@@ -166,7 +166,7 @@ const handleSave = () => {
             <RobotoText style={styles.inputLabel}>{input.label}</RobotoText>
             <TextInput
               style={[styles.input, styles.flexGrow]}
-              value={'09/09/2026 13:45:23'}
+              value={new Date().toLocaleString()}
               onChangeText={input.setter}
               placeholderTextColor="#cbd5e0"
             />
@@ -179,7 +179,7 @@ const handleSave = () => {
         <View style={styles.inputGroup}>
             <RobotoText style={styles.inputLabel}>GMT</RobotoText>
           <Picker
-            selectedValue={isQOS}
+            selectedValue={'-3'}
             onValueChange={(v) => setIsQOS(v)}
             style={[styles.input, styles.flexGrow, { color: '#333', padding: 0 }]}
             dropdownIconColor="#333"
@@ -199,7 +199,7 @@ const handleSave = () => {
           </Picker>
         </View>
 
-        <SaveButton isSaveDisabled={isSaveDisabled} onPress={handleSave} />
+        <SaveButton isSaveDisabled={false} onPress={handleSave} />
       </ModalContainer>
 
       {/* PostSender triggered only when user clicks Save */}

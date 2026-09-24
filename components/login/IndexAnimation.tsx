@@ -1,4 +1,4 @@
-import { Animated, Dimensions, Easing, Image, StyleSheet, TouchableOpacity } from "react-native"
+import { Animated, Dimensions, Easing, Image, StyleSheet, Text, TouchableOpacity } from "react-native"
 import RobotoText from "../RobotoText"
 import { useEffect, useRef } from "react";
 import { useT } from "@/hooks/useT";
@@ -35,6 +35,8 @@ const IndexAnimation: React.FC<IndexAnimationProps> = ({
       <Animated.View style={{ transform: [{ scale: scaleAnim }] }}>
         <Image source={require('../../assets/images/Logo_v101.png')} style={{ width: logoSize, height: logoSize, marginBottom: -60 }} resizeMode="contain" />
       </Animated.View>
+
+                  <Text style={{color:'grey', fontSize: 26, position: 'absolute', marginBottom: 30, fontWeight: '400'}}>Versão 1.1.0</Text>
 
       <Animated.View style={[styles.buttonRow, { transform: [{ translateY: buttonTranslateY }] }]}>
         <TouchableOpacity style={styles.button} onPress={openQRScanner}>

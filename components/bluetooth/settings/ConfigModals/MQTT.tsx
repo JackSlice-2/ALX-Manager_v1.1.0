@@ -20,7 +20,7 @@ const MQTT: React.FC<MQTTProps> = ({
   mqttData,
   mqttConfigData
 }) => {
-  const [isMQTTEnabled, setIsMQTTEnabled] = useState(mqttData.mqtt_hab === 'Habilitado' ? true : false);
+  const [isMQTTEnabled, setIsMQTTEnabled] = useState(true);
   const [isRetentiveEnabled, setIsRetentiveEnabled] = useState(0);
   const [isSaveDisabled, setIsSaveDisabled] = useState(true);
 
@@ -150,12 +150,12 @@ const handleSave = () => {
             <Switch
               thumbColor={isMQTTEnabled ? 'rgba(163, 188, 216, 0.6)' : 'rgba(200, 200, 200, 0.5)'}
               trackColor={{ false: 'rgba(200, 200, 200, 0.5)', true: 'rgba(32, 62, 107, 0.66)' }}
-              value={true}
+              value={isMQTTEnabled}
               onValueChange={handleToggleChange}
               style={{ transform: [{ scaleX: 1.1 }, { scaleY: 1.1 }], width: 50, height: 30 }}
             />
 <RobotoText>
-  Habilitado
+  {isMQTTEnabled ? "Habilitado" : "Desabilitado"}
 </RobotoText>
           </View>
         </View>
@@ -184,9 +184,11 @@ const handleSave = () => {
           </View>
 
 
-        {/* QOS Picker */}
+        {/* QoS Picker */}
 
         <View style={styles.inputGroup}>
+            <RobotoText>QoS</RobotoText>
+
           <Picker
             selectedValue={isQOS}
             onValueChange={(v) => setIsQOS(v)}

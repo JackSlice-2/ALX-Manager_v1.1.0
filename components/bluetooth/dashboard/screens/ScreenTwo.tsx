@@ -33,7 +33,7 @@ const ScreenTwo: React.FC<ScreenTwoProps> = ({
           <View style={{maxWidth: '100%', padding: 15, borderRadius: 10, backgroundColor: 'rgb(233, 234, 235)', width: '100%', marginBottom: 30, marginTop: '5%'}}>
             <View style={styles.imageContainer}>
               <Image 
-                source={require('@/assets/images/CPU.png')} 
+                source={require('@/assets/images/ALX-5x.png')} 
                 style={styles.image}
               />
             </View>
@@ -52,7 +52,7 @@ const ScreenTwo: React.FC<ScreenTwoProps> = ({
                 <RobotoText style={styles.label}>
                   {t.StatusPage2.text2}
                 </RobotoText>
-                <RobotoText style={styles.sectionText}>ALX-4GSE</RobotoText>
+                <RobotoText style={styles.sectionText}>ALX-5DLG</RobotoText>
               </View>
               <View style={styles.singleInput}>
                 <RobotoText style={styles.label}>
