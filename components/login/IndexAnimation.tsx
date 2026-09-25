@@ -36,7 +36,7 @@ const IndexAnimation: React.FC<IndexAnimationProps> = ({
         <Image source={require('../../assets/images/Logo_v101.png')} style={{ width: logoSize, height: logoSize, marginBottom: -60 }} resizeMode="contain" />
       </Animated.View>
 
-                  <Text style={{color:'grey', fontSize: 26, position: 'absolute', marginBottom: 30, fontWeight: '400'}}>Versão 1.1.0</Text>
+                  <RobotoText style={{color:'grey', fontSize: 26, position: 'absolute', marginBottom: 30, fontWeight: '400'}}>Versão 1.1.0</RobotoText>
 
       <Animated.View style={[styles.buttonRow, { transform: [{ translateY: buttonTranslateY }] }]}>
         <TouchableOpacity style={styles.button} onPress={openQRScanner}>

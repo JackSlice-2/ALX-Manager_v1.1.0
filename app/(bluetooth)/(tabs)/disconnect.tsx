@@ -164,7 +164,7 @@ const isStillOnDeviceNetwork = async () => {
           resizeMode="contain"
         />
       </Animated.View>
-      <Text style={{color:'grey', fontSize: 26, position: 'absolute', top: 200, fontWeight: '400'}}>Versão 1.1.0</Text>
+      <RobotoText style={{color:'grey', fontSize: 26, position: 'absolute', top: 200, fontWeight: '400'}}>Versão 1.1.0</RobotoText>
 
       <View
         style={{

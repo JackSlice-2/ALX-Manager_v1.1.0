@@ -270,7 +270,6 @@ export default function WiFiConnect() {
     return;
   }
 
-    router.replace('./(wifi)/status');
     savePassword(pwd);
     router.replace('./(wifi)/status');
 
