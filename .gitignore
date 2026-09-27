@@ -41,9 +41,11 @@ app-example
 # generated native folders
 /ios
 
-.aab
 
 .akp*.apk
+
+*.apk
+*.aab
 
 # Build artifacts
 *.apk
